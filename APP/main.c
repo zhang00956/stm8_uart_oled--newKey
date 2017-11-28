@@ -54,7 +54,7 @@ int main(void)
 {
     u8 arr[49];
     SNode pack, pack_temp;
-    u8 buf[20];//顶一个局部缓冲区
+    u8 buf[20]={0x00};//顶一个局部缓冲区
     u16 cnt_t = 0; //息屏计时
     u8 pos = 0;   //消息队列位置
     CLK_SYSCLKDivConfig(CLK_SYSCLKDiv_1); //内部时钟为1分频 = 16Mhz
@@ -214,6 +214,8 @@ int main(void)
                         TIM2_Cmd(DISABLE);
                         AppState = NORMAL;
                         break;
+                    default:
+                        break;
                 }
                 if(AppState == WORNING) {
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
@@ -252,6 +254,8 @@ int main(void)
                         beep = 0;
                         AppState = NORMAL;
                         break;
+                    default:
+                        break;
                 }
                 if(AppState == CALLING) {
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
@@ -259,6 +263,8 @@ int main(void)
                     }
                     delayms(20);
                 }
+                break;
+            default:
                 break;
         }
 

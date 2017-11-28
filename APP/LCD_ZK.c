@@ -274,7 +274,26 @@ void clear_screen()
 	}
  	lcd_cs1(1);
 }
-
+/*由于汉字使用的是16*16的，所以屏幕看成4行
+row = 0,1,2,3
+*/
+void clear_row(unsigned char row)
+{
+	unsigned char i,j;
+	lcd_cs1(0);
+	Rom_CS(1);	
+	for(i=row*2;i<row*2+2;i++)
+	{
+		transfer_command_lcd(0xb0+i);
+		transfer_command_lcd(0x00);
+		transfer_command_lcd(0x10);
+		for(j=0;j<128;j++)
+		{
+		  	transfer_data_lcd(0x00);
+		}
+	}
+ 	lcd_cs1(1);    
+}
 /*显示128x64点阵图像*/
 void display_128x64(const uchar *dp)
 {

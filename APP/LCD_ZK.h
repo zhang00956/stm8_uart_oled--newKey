@@ -100,4 +100,6 @@ void OLED_Display_On(void);
 void OLED_Display_Off(void);
 /*move left*/
 void move_left(void);
+/*clear row*/
+void clear_row(unsigned char row);
 #endif

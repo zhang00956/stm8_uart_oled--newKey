@@ -161,7 +161,7 @@ int main(void)
                         UART1_SendString(help);
                         beep = 1;
                         display_GB2312_string(0, 1, buf);
-                        if(LedF5 == 1){
+                        if(LedF5 == 1) {
                             sprintf((char *)buf, "收到%d条新消息！", num);
                             display_GB2312_string(2, 1, buf);
                             LedF5 = 0;
@@ -214,6 +214,8 @@ int main(void)
                         TIM2_Cmd(DISABLE);
                         AppState = NORMAL;
                         break;
+                                        default:
+                  break;
                 }
                 if(AppState == WORNING) {
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
@@ -228,7 +230,7 @@ int main(void)
                     OLED_Display_On();
                 }
                 if(LedF5 == 1) {             //息屏状态，点亮屏幕
-                    LedF5 = 0;                   
+                    LedF5 = 0;
                     clear_screen();    //clear all dots
                     sprintf((char *)buf, "收到%d条新消息", num);
                     display_GB2312_string(0, 1, buf);
@@ -252,6 +254,8 @@ int main(void)
                         beep = 0;
                         AppState = NORMAL;
                         break;
+                default:
+                  break;
                 }
                 if(AppState == CALLING) {
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
@@ -260,6 +264,8 @@ int main(void)
                     delayms(20);
                 }
                 break;
+                                default:
+                  break;
         }
 
     }
