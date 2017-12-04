@@ -13,4 +13,9 @@ void MyUart_Init(void);
 void UART1_SendString(char *buf);
 void UART1_SendNumber(int num);
 void UartScan(void);
+
+void uart_txstring(uint8_t *p);
+void uart_txarr(uint8_t *p,uint16_t len,uint8_t endFlag);
+void uart_txHex(unsigned char dat);
+
 #endif

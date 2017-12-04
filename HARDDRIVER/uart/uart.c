@@ -6,6 +6,8 @@
 #include "LCD_ZK.h"
 #include "timer.h"
 
+uint8_t HexTable[]={'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
 char num = 0; //消息未读数量
 extern char num_r;
 extern queue Q;
@@ -35,6 +37,41 @@ void MyUart_Init(void)
 // memset(USART_RX_BUF,0x00,USART_REC_LEN);
     enableInterrupts();
 }
+void UartSendByte(unsigned char dat)
+{
+    USART1->DR = dat;
+    while(((USART1->SR) & 0x80) == 0x00);
+}
+void uart_txstring(uint8_t *p)
+{
+	while(*p != '\0'){
+        UartSendByte(*p++);
+	}    
+}
+void uart_txarr(uint8_t *p,uint16_t len,uint8_t endFlag)
+{
+	uint16_t i;
+	for(i=0;i<len;i++)
+	{
+        UartSendByte(p[i]);
+	}
+	if(endFlag)
+	{
+		UartSendByte(0x0d);
+		UartSendByte(0x0a);
+	}
+}
+
+void uart_txHex(unsigned char dat)
+{
+      UartSendByte('0');
+      UartSendByte('x');
+      UartSendByte(HexTable[dat>>4]);
+      UartSendByte(HexTable[dat&0x0f]);
+      UartSendByte(' ');
+      
+}
+
 
 void UART1_SendString(char buf[])
 {
@@ -55,13 +92,13 @@ void UART1_SendNumber(int num)
     UART1_SendString(buf);
 }
 
-//重定向
-int fputc(int ch, FILE *f)
-{
-    while(((USART1->SR) & 0x80) == 0x00);
-    USART_SendData8(USART1, ch);
-    return ch;
-}
+////重定向
+//int fputc(int ch, FILE *f)
+//{
+//    while(((USART1->SR) & 0x80) == 0x00);
+//    USART_SendData8(USART1, ch);
+//    return ch;
+//}
 
 void UartScan(void)
 {

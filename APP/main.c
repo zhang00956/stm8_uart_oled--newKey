@@ -48,8 +48,8 @@ char help[4] = {0xff, 0x0d, 0x0a, 0x00}; //求救信息
 char CanHelp[4] = {0xfe, 0x0d, 0x0a, 0x00}; //取消报警
 char AllRead[4] = {0xfd, 0x0d, 0x0a, 0x00}; //已读
 
-
-
+void ADCConver_Init(void);
+u16 ReadBattery(void);
 int main(void)
 {
     u8 arr[49];
@@ -66,15 +66,21 @@ int main(void)
     clear_screen();    //clear all dots
     display_128x64(bmp1);
     /*******/
-//    ADCConver_Init();
-//    u16 u16_adc1_value;
-//    float adBattery = 0.0;
-//    while(1){
-//       u16_adc1_value = ReadBattery();
-//       adBattery = 3.3 * u16_adc1_value / 4096;
-//       printf("%.3f \r\n",adBattery);
-//       delayms(1000);
-//    }
+    ADCConver_Init();
+    u16 u16_adc1_value;
+    float adBattery = 0.0;
+    
+    uart_txstring("中文\r\n");
+    uart_txHex(0xff);
+    //uart_txarr(help,3,0);
+    
+    while(1){
+       u16_adc1_value = ReadBattery();
+       adBattery = 2.8 * u16_adc1_value / 4096;
+       //sprintf(buf,"%.3f \r\n",adBattery);
+       //uart_txstring(buf);
+       delayms(1000);
+    }
     /*****************/
 
     GPIO_Config();
