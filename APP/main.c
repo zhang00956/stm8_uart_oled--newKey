@@ -19,7 +19,7 @@
 #include "uart.h"
 #include "stm8l15x_it.h"
 #include "queue.h"
-#include "stdio.h"
+//#include "stdio.h"
 #include "string.h"
 #include "sysclk.h"
 #include "beep.h"
@@ -49,9 +49,12 @@ u8 AppState = NORMAL;//默认正常状态
 u8 LedF5 = 0;   //是否刷新显示收到消息
 u8 beep = 0;//蜂鸣器命令
 u8 keyPassValue = 0; //长按短按状态
-char help[4] = {0xff, 0x0d, 0x0a, 0x00}; //求救信息
-char CanHelp[4] = {0xfe, 0x0d, 0x0a, 0x00}; //取消报警
-char AllRead[4] = {0xfd, 0x0d, 0x0a, 0x00}; //已读
+
+/*0xff求救信息
+ *0xfe取消报警 
+ *0xfd已读消息
+ */
+u8 HelpMsg[3] = {0xff, 0xfe, 0xfd}; 
 
 void ADCConver_Init(void);
 u16 ReadBattery(void);
@@ -68,7 +71,6 @@ int main(void)
     CreateQueue(&Q);//创建队列
     CreateQueue(&Q_old);
     MyUart_Init();
-    //TIM3_Init();
     print_init_module(uart_txstring);
     initial_lcd();
     clear_screen();    //clear all dots
@@ -122,7 +124,7 @@ int main(void)
                 if((LedF5 == 1) && (led_on == 0)) {
                     LedF5 = 0;
                     clear_screen();    //clear all dots
-                    sprintf((char *)buf, "收到%d条新消息！", num);
+                    mini_sprint((char *)buf,20, "收到%d条新消息！", num);
                     display_GB2312_string(0, 1, buf);
                 }
                 keyPassValue = keyScan();
@@ -146,11 +148,11 @@ int main(void)
                                     EnQueue(&Q_old, &pack);
                                 }
                                 clear_screen();    //clear all dots
-                                sprintf((char *)buf, "消息(%d)未读(%d)", num_r, num);
+                                mini_sprint((char *)buf,20, "消息(%d)未读(%d)", num_r, num);
                                 display_GB2312_string(0, 1, buf);
                                 display_GB2312_string(2, 1, arr);
                                 num_l = 0;
-                                UART1_SendString(AllRead);   //暂定把已读功能放在这里
+                                uart_txarr(&HelpMsg[2], 1, 1);   //暂定把已读功能放在这里
                             } else {
                                 if (size_queue(&Q_old) > 0) {
                                     num_l++;
@@ -160,12 +162,12 @@ int main(void)
                                     pos = (Q_old.front + num_l) % (size_queue(&Q_old) + 1);
                                     get_pack(&(Q_old.Pack[pos]), arr);
                                     clear_screen();    //clear all dots
-                                    sprintf((char *)buf, "历史消息(%d)", num_l);
+                                    mini_sprint((char *)buf,20, "历史消息(%d)", num_l);
                                     display_GB2312_string(0, 1, buf);
                                     display_GB2312_string(2, 1, arr);
                                 } else {
                                     clear_screen();    //clear all dots
-                                    sprintf((char *)buf, "无消息!");
+                                    mini_sprint((char *)buf,20, "无消息!");
                                     display_GB2312_string(0, 1, buf);
                                 }
                             }
@@ -175,12 +177,12 @@ int main(void)
 
                     case KeyPassLong :
                         clear_screen();    //clear all dots
-                        sprintf((char *)buf, "求救成功!");
-                        UART1_SendString(help);
+                        mini_sprint((char *)buf,20, "求救成功!");
+                        uart_txarr(&HelpMsg[0], 1, 1);
                         beep = 1;
                         display_GB2312_string(0, 1, buf);
                         if(LedF5 == 1) {
-                            sprintf((char *)buf, "收到%d条新消息！", num);
+                            mini_sprint((char *)buf,20, "收到%d条新消息!", num);
                             display_GB2312_string(2, 1, buf);
                             LedF5 = 0;
                         }
@@ -209,7 +211,7 @@ int main(void)
                     LedF5 = 0;
                     OLED_Display_On();
                     clear_screen();    //clear all dots
-                    sprintf((char *)buf, "收到%d条新消息", num);
+                    mini_sprint((char *)buf,20, "收到%d条新消息!", num);
                     display_GB2312_string(0, 1, buf);
                     cnt_t = 0;     //重置屏幕熄灭时间
                 }
@@ -217,16 +219,16 @@ int main(void)
                 switch (keyPassValue) {
                     case keyPassOne:
                         clear_screen();    //clear all dots
-                        sprintf((char *)buf, "请长按解除警报!");
+                        mini_sprint((char *)buf,20, "请长按解除警报!");
                         display_GB2312_string(0, 1, buf);
-                        sprintf((char *)buf, "然后再读取消息!");
+                        mini_sprint((char *)buf,20, "然后再读取消息!");
                         display_GB2312_string(2, 1, buf);
                         break;
                     case KeyPassLong:
                         clear_screen();    //clear all dots
-                        sprintf((char *)buf, "警报已解除!");
+                        mini_sprint((char *)buf,20, "警报已解除!");
                         display_GB2312_string(0, 1, buf);
-                        UART1_SendString(CanHelp);
+                        uart_txarr(&HelpMsg[1], 1, 1);
                         beep = 0;
                         BeepInit();
                         LEDInit();
@@ -251,7 +253,7 @@ int main(void)
                 if(LedF5 == 1) {             //息屏状态，点亮屏幕
                     LedF5 = 0;
                     clear_screen();    //clear all dots
-                    sprintf((char *)buf, "收到%d条新消息", num);
+                    mini_sprint((char *)buf,20, "收到%d条新消息", num);
                     display_GB2312_string(0, 1, buf);
                     cnt_t = 0;     //重置屏幕熄灭时间
                 }
@@ -259,14 +261,14 @@ int main(void)
                 switch (keyPassValue) {
                     case keyPassOne:
                         clear_screen();    //clear all dots
-                        sprintf((char *)buf, "长按解除警报!");
+                        mini_sprint((char *)buf,20, "长按解除警报!");
                         display_GB2312_string(0, 1, buf);
                         break;
                     case KeyPassLong:
                         clear_screen();    //clear all dots
-                        sprintf((char *)buf, "警报已解除!");
+                        mini_sprint((char *)buf,20, "警报已解除!");
                         display_GB2312_string(0, 1, buf);
-                        UART1_SendString(CanHelp);
+                        uart_txarr(&HelpMsg[1], 1, 1);
                         BeepInit();
                         LEDInit();
                         TIM2_Cmd(DISABLE);
