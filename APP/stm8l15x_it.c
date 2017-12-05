@@ -29,7 +29,6 @@
 u8 USART_RX_BUF[USART_REC_LEN];//缓冲区
 volatile u16 USART_RX_STA = 0;//接受状态
 u16 TIM2_Conut = 0;
-u16 TIM3_Conut = 0;
 extern u8 AppState;
 extern u8 keyPassValue;
 /** @addtogroup STM8L15x_StdPeriph_Examples
@@ -376,11 +375,6 @@ INTERRUPT_HANDLER(TIM3_UPD_OVF_TRG_BRK_IRQHandler, 21)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
-    TIM3_Conut++;
-    if(TIM3_Conut >= 20) {
-        TIM3_Conut = 0;
-        keyPassValue = keyScan();
-    }
     TIM3_ClearITPendingBit(TIM3_IT_Update); //清除中断标志
 }
 /**

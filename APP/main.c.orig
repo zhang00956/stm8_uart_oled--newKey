@@ -32,7 +32,7 @@
 
 #define LOW_POWER 2367
 #define CHARGEING 3055
-#define CHARGE_OVER 2770
+#define CHARGE_OVER 2773
 
 #define OFF_TIME           500
 
@@ -61,7 +61,7 @@ int main(void)
 {
     u8 arr[49];
     SNode pack, pack_temp;
-    u8 buf[20]={0x00};//顶一个局部缓冲区
+    u8 buf[20] = {0x00}; //顶一个局部缓冲区
     u16 cnt_t = 0; //息屏计时
     u8 pos = 0;   //消息队列位置
     CLK_SYSCLKDivConfig(CLK_SYSCLKDiv_1); //内部时钟为1分频 = 16Mhz
@@ -75,23 +75,24 @@ int main(void)
     display_128x64(bmp1);
     /*******/
     ADCConver_Init();
-    u16 u16_adc1_value;
-    float adBattery = 0.0;
-//    mini_sprint(buf,20,"mini print test\r\n");
-//    uart_txstring(buf);
-//    uart_txHex(0xff);
-    //uart_txarr(help,3,0);
-    
-    while(1){
-CheckPower();
-       mini_sprint(buf,20,"value = %d\r\n",u16_adc1_value);
-       uart_txstring(buf);
-       adBattery = 2.8 * u16_adc1_value / 4096;
-       sprintf(buf,"%.3f \r\n",adBattery);
-       //mini_sprint(buf,20,"%.3f \r\n",adBattery);
-       uart_txstring(buf);
-       delayms(300);
-    }
+//    u16 u16_adc1_value;
+//    float adBattery = 0.0;
+////    mini_sprint(buf,20,"mini print test\r\n");
+////    uart_txstring(buf);
+////    uart_txHex(0xff);
+//    //uart_txarr(help,3,0);
+//
+//    while(1) {
+//        CheckPower();
+//        u16_adc1_value = ReadBattery();
+//        mini_sprint(buf, 20, "value = %d\r\n", u16_adc1_value);
+//        uart_txstring(buf);
+//        adBattery = 2.8 * u16_adc1_value / 4096;
+//        sprintf(buf, "%.3f \r\n", adBattery);
+//        //mini_sprint(buf,20,"%.3f \r\n",adBattery);
+//        uart_txstring(buf);
+//        delayms(300);
+//    }
     /*****************/
 
     GPIO_Config();
@@ -198,13 +199,7 @@ CheckPower();
                         cnt_t = 0;
                         OLED_Display_Off();
                         led_on = 1;
-                       u16_adc1_value = ReadBattery();
-                       mini_sprint(buf,20,"value = %d\r\n",u16_adc1_value);
-                       uart_txstring(buf);
-                       adBattery = 2.8 * u16_adc1_value / 4096;
-                       sprintf(buf,"%.3f \r\n",adBattery);
-                       //mini_sprint(buf,20,"%.3f \r\n",adBattery);
-                       uart_txstring(buf);
+                        CheckPower();
                     }
                 }
                 break;
@@ -303,8 +298,8 @@ void ADCConver_Init(void)
     GPIO_Init(ADCPORT , ADCPIN , GPIO_Mode_In_FL_No_IT);  //设置ADCPIN悬空输入，并中断禁止
 
     ADC_Cmd(ADC1 , ENABLE);               //使能ADC
-    for (idx = 0; idx < 50; idx++); //adc上电需要一段时间    
-    
+    for (idx = 0; idx < 50; idx++); //adc上电需要一段时间
+
     ADC_VrefintCmd(ENABLE);//使能内部参考电压
     ADC_Init(ADC1,
              ADC_ConversionMode_Single,   //单次转换模式
@@ -328,20 +323,21 @@ u16 ReadBattery(void)
 
 void CheckPower(void)
 {
-    static u8 txLowPowerMsg = 1;
-    static u8 txChargeingMsg = 1;
-    static u8 txChargeOverMsg = 1;
-
-        u16_adc1_value = ReadBattery();
-       if(u16_adc1_value < LOW_POWER  && ){
-            mini_sprint(buf,20,"Battery Power Low\r\n");
-            uart_txstring(buf);
-       }else if(u16_adc1_value < CHARGE_OVER){
-            mini_sprint(buf,20,"CHARGE_OVER\r\n");
-            uart_txstring(buf);        
-       }else if(u16_adc1_value > CHARGEING){
-            mini_sprint(buf,20,"CHARGEING\r\n");
-            uart_txstring(buf);         
-       }    
+//    static u8 txLowPowerMsg = 1;
+//    static u8 txChargeingMsg = 1;
+//    static u8 txChargeOverMsg = 1;
+  u8 powerMsg[3]={0xfc,0xfb,0xfa};
+    u16 u16_adc1_value[6];
+    for(u8 i=0;i<5;i++){
+        u16_adc1_value[i] = ReadBattery();
+    }
+    u16 value = u16_adc1_value[2];
+    if(value < LOW_POWER ) {
+        uart_txarr(&powerMsg[0],1,1);
+    } else if(value < CHARGE_OVER) {
+        uart_txarr(&powerMsg[2],1,1);
+    } else if(value > CHARGEING) {
+        uart_txarr(&powerMsg[1],1,1);
+    }
 }
 

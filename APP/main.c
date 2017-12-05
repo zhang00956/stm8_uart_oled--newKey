@@ -75,24 +75,24 @@ int main(void)
     display_128x64(bmp1);
     /*******/
     ADCConver_Init();
-    u16 u16_adc1_value;
-    float adBattery = 0.0;
-//    mini_sprint(buf,20,"mini print test\r\n");
-//    uart_txstring(buf);
-//    uart_txHex(0xff);
-    //uart_txarr(help,3,0);
-
-    while(1) {
-        CheckPower();
-        u16_adc1_value = ReadBattery();
-        mini_sprint(buf, 20, "value = %d\r\n", u16_adc1_value);
-        uart_txstring(buf);
-        adBattery = 2.8 * u16_adc1_value / 4096;
-        sprintf(buf, "%.3f \r\n", adBattery);
-        //mini_sprint(buf,20,"%.3f \r\n",adBattery);
-        uart_txstring(buf);
-        delayms(300);
-    }
+//    u16 u16_adc1_value;
+//    float adBattery = 0.0;
+////    mini_sprint(buf,20,"mini print test\r\n");
+////    uart_txstring(buf);
+////    uart_txHex(0xff);
+//    //uart_txarr(help,3,0);
+//
+//    while(1) {
+//        CheckPower();
+//        u16_adc1_value = ReadBattery();
+//        mini_sprint(buf, 20, "value = %d\r\n", u16_adc1_value);
+//        uart_txstring(buf);
+//        adBattery = 2.8 * u16_adc1_value / 4096;
+//        sprintf(buf, "%.3f \r\n", adBattery);
+//        //mini_sprint(buf,20,"%.3f \r\n",adBattery);
+//        uart_txstring(buf);
+//        delayms(300);
+//    }
     /*****************/
 
     GPIO_Config();
@@ -198,7 +198,8 @@ int main(void)
                     if(cnt_t > OFF_TIME) {
                         cnt_t = 0;
                         OLED_Display_Off();
-                        led_on = 1;                      
+                        led_on = 1;
+                        CheckPower();
                     }
                 }
                 break;
@@ -322,20 +323,21 @@ u16 ReadBattery(void)
 
 void CheckPower(void)
 {
-    static u8 txLowPowerMsg = 1;
-    static u8 txChargeingMsg = 1;
-    static u8 txChargeOverMsg = 1;
+//    static u8 txLowPowerMsg = 1;
+//    static u8 txChargeingMsg = 1;
+//    static u8 txChargeOverMsg = 1;
+    u8 powerMsg[3] = {0xfc, 0xfb, 0xfa};
     u16 u16_adc1_value[6];
-    for(u8 i=0;i<5;i++){
+    for(u8 i = 0; i < 5; i++) {
         u16_adc1_value[i] = ReadBattery();
     }
     u16 value = u16_adc1_value[2];
     if(value < LOW_POWER ) {
-        uart_txstring("Battery Power Low\r\n");
+        uart_txarr(&powerMsg[0], 1, 1);
     } else if(value < CHARGE_OVER) {
-        uart_txstring("CHARGE_OVER\r\n");
+        uart_txarr(&powerMsg[2], 1, 1);
     } else if(value > CHARGEING) {
-        uart_txstring( "CHARGEING\r\n");
+        uart_txarr(&powerMsg[1], 1, 1);
     }
 }
 

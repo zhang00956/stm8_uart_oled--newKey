@@ -6,7 +6,6 @@
 #include "LCD_ZK.h"
 void CreateQueue(Pqueue Q)
 {
-
 	if((Q=(Pqueue)malloc(sizeof(queue)))==NULL)
 	{
 		//printf("malloc err");	
