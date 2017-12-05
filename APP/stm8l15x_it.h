@@ -24,7 +24,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm8l15x.h"
-#define USART_REC_LEN 100 //自定义缓冲区的长度
+#define USART_REC_LEN 64 //自定义缓冲区的长度
 #define CHE_LI  0XFF
 #define FEI_CHE_LI 0XFE
 #define CALL_REN   0XFD

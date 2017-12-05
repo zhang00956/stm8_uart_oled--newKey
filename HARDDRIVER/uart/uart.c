@@ -71,8 +71,6 @@ void uart_txHex(unsigned char dat)
       UartSendByte(' ');
       
 }
-
-
 void UART1_SendString(char buf[])
 {
     unsigned int i = 0;

@@ -34,6 +34,9 @@
       <name>$PROJ_DIR$\APP\main.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\BSP\mini-printf.a</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\APP\queue.c</name>
     </file>
     <file>

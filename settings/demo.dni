@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=-328158539
+Checksum=-1449685394
 [CallStack]
 ShowArgs=0
 [Disassembly]
@@ -19,8 +19,6 @@ LogEnabled=0
 GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
-[Breakpoints]
-Count=0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -28,8 +26,11 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
-[Aliases]
+[Breakpoints]
 Count=0
+[Aliases]
+A0=_ "C:\Users\xs\Desktop\123\mini-printf.c" ""
+Count=1
 SuppressDialog=0
 [DebuggerSettings]
 DisableInterruptsWhenStepping=0

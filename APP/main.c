@@ -25,9 +25,14 @@
 #include "beep.h"
 #include "key.h"
 #include "timer.h"
+#include "mini-printf.h"
 
 #define ADCPORT  GPIOB
 #define ADCPIN   GPIO_Pin_1
+
+#define LOW_POWER 2367
+#define CHARGEING 3055
+#define CHARGE_OVER 2773
 
 #define OFF_TIME           500
 
@@ -50,11 +55,13 @@ char AllRead[4] = {0xfd, 0x0d, 0x0a, 0x00}; //已读
 
 void ADCConver_Init(void);
 u16 ReadBattery(void);
+void CheckPower(void);
+
 int main(void)
 {
     u8 arr[49];
     SNode pack, pack_temp;
-    u8 buf[20]={0x00};//顶一个局部缓冲区
+    u8 buf[20] = {0x00}; //顶一个局部缓冲区
     u16 cnt_t = 0; //息屏计时
     u8 pos = 0;   //消息队列位置
     CLK_SYSCLKDivConfig(CLK_SYSCLKDiv_1); //内部时钟为1分频 = 16Mhz
@@ -62,6 +69,7 @@ int main(void)
     CreateQueue(&Q_old);
     MyUart_Init();
     //TIM3_Init();
+    print_init_module(uart_txstring);
     initial_lcd();
     clear_screen();    //clear all dots
     display_128x64(bmp1);
@@ -69,17 +77,21 @@ int main(void)
     ADCConver_Init();
     u16 u16_adc1_value;
     float adBattery = 0.0;
-    
-    uart_txstring("中文\r\n");
-    uart_txHex(0xff);
+//    mini_sprint(buf,20,"mini print test\r\n");
+//    uart_txstring(buf);
+//    uart_txHex(0xff);
     //uart_txarr(help,3,0);
-    
-    while(1){
-       u16_adc1_value = ReadBattery();
-       adBattery = 2.8 * u16_adc1_value / 4096;
-       //sprintf(buf,"%.3f \r\n",adBattery);
-       //uart_txstring(buf);
-       delayms(1000);
+
+    while(1) {
+        CheckPower();
+        u16_adc1_value = ReadBattery();
+        mini_sprint(buf, 20, "value = %d\r\n", u16_adc1_value);
+        uart_txstring(buf);
+        adBattery = 2.8 * u16_adc1_value / 4096;
+        sprintf(buf, "%.3f \r\n", adBattery);
+        //mini_sprint(buf,20,"%.3f \r\n",adBattery);
+        uart_txstring(buf);
+        delayms(300);
     }
     /*****************/
 
@@ -186,7 +198,7 @@ int main(void)
                     if(cnt_t > OFF_TIME) {
                         cnt_t = 0;
                         OLED_Display_Off();
-                        led_on = 1;
+                        led_on = 1;                      
                     }
                 }
                 break;
@@ -284,6 +296,9 @@ void ADCConver_Init(void)
     CLK_PeripheralClockConfig(CLK_Peripheral_ADC1 , ENABLE);              //使能ADC1时钟
     GPIO_Init(ADCPORT , ADCPIN , GPIO_Mode_In_FL_No_IT);  //设置ADCPIN悬空输入，并中断禁止
 
+    ADC_Cmd(ADC1 , ENABLE);               //使能ADC
+    for (idx = 0; idx < 50; idx++); //adc上电需要一段时间
+
     ADC_VrefintCmd(ENABLE);//使能内部参考电压
     ADC_Init(ADC1,
              ADC_ConversionMode_Single,   //单次转换模式
@@ -294,9 +309,6 @@ void ADCConver_Init(void)
     ADC_ChannelCmd(ADC1,
                    ADC_Channel_17,         //设置为通道17进行采样
                    ENABLE);
-
-    ADC_Cmd(ADC1 , ENABLE);               //使能ADC
-    for (idx = 0; idx < 50; idx++); //adc上电需要一段时间
 }
 
 u16 ReadBattery(void)
@@ -308,5 +320,22 @@ u16 ReadBattery(void)
     return ADC_GetConversionValue(ADC1);           //读取ADC1，通道1的转换结果
 }
 
-
+void CheckPower(void)
+{
+    static u8 txLowPowerMsg = 1;
+    static u8 txChargeingMsg = 1;
+    static u8 txChargeOverMsg = 1;
+    u16 u16_adc1_value[6];
+    for(u8 i=0;i<5;i++){
+        u16_adc1_value[i] = ReadBattery();
+    }
+    u16 value = u16_adc1_value[2];
+    if(value < LOW_POWER ) {
+        uart_txstring("Battery Power Low\r\n");
+    } else if(value < CHARGE_OVER) {
+        uart_txstring("CHARGE_OVER\r\n");
+    } else if(value > CHARGEING) {
+        uart_txstring( "CHARGEING\r\n");
+    }
+}
 
