@@ -76,6 +76,9 @@ void lcd_address(unsigned char page,unsigned char column);
 void clear_screen(void);
 /*显示128x64点阵图像*/
 void display_128x64(const unsigned char *dp);
+
+void display_16x32(unsigned char chXpos, unsigned char chYpos, unsigned char chChar);
+
 /*显示132x64点阵图像*/
 //void display_132x64(unsigned char *dp);
 /*显示16x16点阵图像、汉字、生僻字或16x16点阵的其他图标*/
@@ -102,4 +105,7 @@ void OLED_Display_Off(void);
 void move_left(void);
 /*clear row*/
 void clear_row(unsigned char row);
+
+void GBZK_GPIO_Config(void);
+
 #endif

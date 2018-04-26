@@ -25,12 +25,17 @@
 #include "string.h"
 #include "uart.h"
 #include "key.h"
+#include <LCD_ZK.H>
+#include "low_power.h"
+
 
 u8 USART_RX_BUF[USART_REC_LEN];//缓冲区
 volatile u16 USART_RX_STA = 0;//接受状态
 u16 TIM2_Conut = 0;
 extern u8 AppState;
 extern u8 keyPassValue;
+extern u8 led_on;//第一次按按键点亮屏幕
+extern volatile u8 Power_charge;
 /** @addtogroup STM8L15x_StdPeriph_Examples
   * @{
   */
@@ -201,10 +206,14 @@ INTERRUPT_HANDLER(EXTI1_IRQHandler, 9)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
-
-//  LED1_ON();
-//  //LCD_GLASS_DisplayString("wowo");
-//  EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
+disableInterrupts();  
+      if(EXTI_GetITStatus(EXTI_IT_Pin1))
+        {
+            EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
+            GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_No_IT);
+            Power_charge = 1;
+        }      
+enableInterrupts();       
 }
 
 /**
@@ -217,6 +226,18 @@ INTERRUPT_HANDLER(EXTI2_IRQHandler, 10)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
+  disableInterrupts();
+    if(EXTI_GetITStatus(EXTI_IT_Pin2))
+        {
+            /* Cleat Interrupt pending bit */
+            EXTI_ClearITPendingBit (EXTI_IT_Pin2);//清除中断标志           
+            /* Check if the interrupt is from the COUNT_A pin or not */
+            if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2) == RESET)
+            {
+                  GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT);
+            }
+        }  
+     enableInterrupts();  
 }
 
 /**
@@ -267,6 +288,21 @@ INTERRUPT_HANDLER(EXTI6_IRQHandler, 14)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
+  disableInterrupts();
+    if(EXTI_GetITStatus(EXTI_IT_Pin6))
+        {
+            /* Cleat Interrupt pending bit */
+            EXTI_ClearITPendingBit (EXTI_IT_Pin6);//清除中断标志
+            delayms(5);//消抖
+            /* Check if the interrupt is from the COUNT_A pin or not */
+            if(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET)
+            {
+                  GPIO_Init(GPIOD, GPIO_Pin_6, GPIO_Mode_In_PU_No_IT);            
+                  led_on = 0;
+                  OLED_Display_On();              
+            }
+        }  
+     enableInterrupts();
 }
 
 /**

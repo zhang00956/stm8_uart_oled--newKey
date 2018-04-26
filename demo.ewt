@@ -31,10 +31,13 @@
       <name>$PROJ_DIR$\APP\LCD_ZK.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\APP\low_power.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\APP\main.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\BSP\mini-printf.a</name>
+      <name>$PROJ_DIR$\BSP\mini-printf.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\APP\queue.c</name>

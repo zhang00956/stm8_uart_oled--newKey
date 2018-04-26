@@ -98,7 +98,7 @@ void UART1_SendNumber(int num)
 //    return ch;
 //}
 
-void UartScan(void)
+uint8_t UartScan(void)
 {
 
     u8 len;
@@ -108,6 +108,10 @@ void UartScan(void)
     //u8 arr[49];
     if(USART_RX_STA & 0x8000) {
         len = USART_RX_STA & 0x3fff; //得到此次接收到的数据长度
+        if(len < 4)
+        {
+            return 0;
+        }
 //			for(t=0;t<len;t++)
 //			{
 //                USART_SendData8(USART1,USART_RX_BUF[t]);
@@ -177,5 +181,6 @@ void UartScan(void)
         USART_RX_STA = 0;
 //            memset(USART_RX_BUF,0x00,USART_REC_LEN);
     }
+    return 0;
 }
 

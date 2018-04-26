@@ -17,7 +17,7 @@
         <debug>1</debug>
         <option>
           <name>GenDeviceSelectMenu</name>
-          <state>STM8L152K4	STM8L152K4</state>
+          <state>STM8L152K6	STM8L152K6</state>
         </option>
         <option>
           <name>GenCodeModel</name>
@@ -269,7 +269,7 @@
           <state>$PROJ_DIR$\HARDDRIVER\exit</state>
           <state>$PROJ_DIR$\HARDDRIVER\dma</state>
           <state>$PROJ_DIR$\HARDDRIVER\uart</state>
-          <state>E:\8L_iar\stm8_lora\rf</state>
+          <state>$PROJ_DIR$\stm8_lora\rf</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -1613,10 +1613,13 @@
       <name>$PROJ_DIR$\APP\LCD_ZK.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\APP\low_power.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\APP\main.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\BSP\mini-printf.a</name>
+      <name>$PROJ_DIR$\BSP\mini-printf.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\APP\queue.c</name>

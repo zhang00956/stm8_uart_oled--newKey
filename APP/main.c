@@ -26,9 +26,9 @@
 #include "key.h"
 #include "timer.h"
 #include "mini-printf.h"
+#include "low_power.h"
 
-#define ADCPORT  GPIOB
-#define ADCPIN   GPIO_Pin_1
+
 
 #define LOW_POWER 2367
 #define CHARGEING 3055
@@ -44,30 +44,44 @@ char num_r = 0;//已读
 char num_l = 0;//历史消息
 //u16 key_num = 0; //长按计数
 //u8 flag_next = 1;//继续往下执行
-u8 led_on = 0;//第一次按按键点亮屏幕
-u8 AppState = NORMAL;//默认正常状态
-u8 LedF5 = 0;   //是否刷新显示收到消息
-u8 beep = 0;//蜂鸣器命令
-u8 keyPassValue = 0; //长按短按状态
+volatile u8 led_on = 0;//第一次按按键点亮屏幕
+volatile u8 AppState = NORMAL;//默认正常状态
+volatile u8 LedF5 = 0;   //是否刷新显示收到消息
+volatile u8 beep = 0;//蜂鸣器命令
+volatile u8 keyPassValue = 0; //长按短按状态
+volatile u8 Power_charge = 0; //充电器连接状态检测
 
 /*0xff求救信息
- *0xfe取消报警 
+ *0xfe取消报警
  *0xfd已读消息
  */
-u8 HelpMsg[3] = {0xff, 0xfe, 0xfd}; 
-
+u8 HelpMsg[3] = {0xff, 0xfe, 0xfd};
+u8 PowerMsg[4] = {0xfc, 0xfb, 0xfa, 0xf9};
 void ADCConver_Init(void);
 u16 ReadBattery(void);
 void CheckPower(void);
 
 int main(void)
 {
-    u8 arr[49];
+    u8 power_on = 0;
+
+    u8 arr[49]={0};
     SNode pack, pack_temp;
     u8 buf[20] = {0x00}; //顶一个局部缓冲区
     u16 cnt_t = 0; //息屏计时
     u8 pos = 0;   //消息队列位置
+
+    CLK_SYSCLKSourceSwitchCmd(ENABLE);//使能时钟切换
+    CLK_HSICmd(ENABLE);
+    CLK_SYSCLKSourceConfig(CLK_SYSCLKSource_HSI);//选择外部低速时钟作为时钟源
     CLK_SYSCLKDivConfig(CLK_SYSCLKDiv_1); //内部时钟为1分频 = 16Mhz
+    while (CLK_GetSYSCLKSource() != CLK_SYSCLKSource_HSI);
+
+    PWR_UltraLowPowerCmd(ENABLE);
+    CLK_HaltConfig(CLK_Halt_FastWakeup, ENABLE);
+    PWR_FastWakeUpCmd(ENABLE);
+
+
     CreateQueue(&Q);//创建队列
     CreateQueue(&Q_old);
     MyUart_Init();
@@ -75,8 +89,10 @@ int main(void)
     initial_lcd();
     clear_screen();    //clear all dots
     display_128x64(bmp1);
-    /*******/
-    ADCConver_Init();
+    GPIO_Config();
+
+//     ADCConver_Init();
+
 //    u16 u16_adc1_value;
 //    float adBattery = 0.0;
 ////    mini_sprint(buf,20,"mini print test\r\n");
@@ -97,7 +113,7 @@ int main(void)
 //    }
     /*****************/
 
-    GPIO_Config();
+
 
 //    transfer_command_lcd(0x27);
 //    transfer_command_lcd(0x00);//a
@@ -117,14 +133,76 @@ int main(void)
         transfer_command_lcd(0x01);
         transfer_command_lcd(0x2F);
     	lcd_cs1(1);*/
-
+    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == (uint8_t)ADCPIN){   //如果是插着充电器开机
+        Power_charge = 1;
+    }
     while(1) {
+        if(Power_charge) {          //只显示一次
+            if(led_on) {             //息屏状态点亮屏幕
+                led_on = 0;
+                OLED_Display_On();
+                cnt_t = 0;     //重置屏幕熄灭时间
+            }
+            cnt_t = 0;
+            clear_screen();
+            mini_sprint(buf, 20, "充电器已连接");
+            display_GB2312_string(0, 16, buf);
+            uart_txstring("充\r\n");
+            uart_txarr(&PowerMsg[0], 1, 1);
+            while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
+                power_on = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
+                if(power_on == 0) {                  
+
+                    asm("sim");//close IT
+                    Power_charge = 0; 
+                    EXTI_SetPinSensitivity(ADC_EXTI_PIN, EXTI_Trigger_Rising); //上升沿中断                   
+                    GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_IT);//初始充电接口
+                    EXTI_ClearITPendingBit(EXTI_IT_Pin1);
+                    asm("rim");
+                    keyPassValue = 0;//断开之后重置按键状态
+                    beep = 0;
+                    memset(arr,0x00,49);
+                    mini_sprint(buf, 20, "充电器已断开");
+                    clear_screen();
+                    display_GB2312_string(0, 16, buf);
+                    uart_txstring("断\r\n");
+                    uart_txarr(&PowerMsg[1], 1, 1);
+                    break;
+                }
+                keyPassValue = keyScan2();
+                if(keyPassValue == KeyPassLong) {
+                  if(beep == 1){
+                    mini_sprint(buf, 20, "测试结束");
+                    clear_screen();
+                    display_GB2312_string(0, 32, buf);
+                    beep = 0;
+                    LED_GREEN_OFF;
+                    LED_RED_OFF;  
+                    uart_txarr(&PowerMsg[3], 1, 1);
+                  }else{
+                    mini_sprint(buf, 20, "产测模式");
+                    clear_screen();
+                    display_GB2312_string(0, 32, buf);                    
+                    mini_sprint(arr, 49, "请注意观察上位机数据,LED和蜂鸣器是否正常!!");
+                    display_GB2312_string(2, 0, arr);
+                    beep = 1;
+                    LED_GREEN_ON; 
+                    LED_RED_ON;   
+                    uart_txarr(&PowerMsg[2], 1, 1);
+                  }
+                }
+                if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
+                    sound2();
+                }
+                delayms(10);
+            }
+        }
         switch(AppState) {
             case NORMAL:
                 if((LedF5 == 1) && (led_on == 0)) {
                     LedF5 = 0;
                     clear_screen();    //clear all dots
-                    mini_sprint((char *)buf,20, "收到%d条新消息！", num);
+                    mini_sprint((char *)buf, 20, "收到%d条新消息！", num);
                     display_GB2312_string(0, 1, buf);
                 }
                 keyPassValue = keyScan();
@@ -148,7 +226,7 @@ int main(void)
                                     EnQueue(&Q_old, &pack);
                                 }
                                 clear_screen();    //clear all dots
-                                mini_sprint((char *)buf,20, "消息(%d)未读(%d)", num_r, num);
+                                mini_sprint((char *)buf, 20, "消息(%d)未读(%d)", num_r, num);
                                 display_GB2312_string(0, 1, buf);
                                 display_GB2312_string(2, 1, arr);
                                 num_l = 0;
@@ -162,12 +240,12 @@ int main(void)
                                     pos = (Q_old.front + num_l) % (size_queue(&Q_old) + 1);
                                     get_pack(&(Q_old.Pack[pos]), arr);
                                     clear_screen();    //clear all dots
-                                    mini_sprint((char *)buf,20, "历史消息(%d)", num_l);
+                                    mini_sprint((char *)buf, 20, "历史消息(%d)", num_l);
                                     display_GB2312_string(0, 1, buf);
                                     display_GB2312_string(2, 1, arr);
                                 } else {
                                     clear_screen();    //clear all dots
-                                    mini_sprint((char *)buf,20, "无消息!");
+                                    mini_sprint((char *)buf, 20, "无消息!");
                                     display_GB2312_string(0, 1, buf);
                                 }
                             }
@@ -177,12 +255,12 @@ int main(void)
 
                     case KeyPassLong :
                         clear_screen();    //clear all dots
-                        mini_sprint((char *)buf,20, "求救成功!");
+                        mini_sprint((char *)buf, 20, "求救成功!");
                         uart_txarr(&HelpMsg[0], 1, 1);
                         beep = 1;
                         display_GB2312_string(0, 1, buf);
                         if(LedF5 == 1) {
-                            mini_sprint((char *)buf,20, "收到%d条新消息!", num);
+                            mini_sprint((char *)buf, 20, "收到%d条新消息!", num);
                             display_GB2312_string(2, 1, buf);
                             LedF5 = 0;
                         }
@@ -201,17 +279,24 @@ int main(void)
                         cnt_t = 0;
                         OLED_Display_Off();
                         led_on = 1;
-                        CheckPower();
+//                        CheckPower();
+                        EnterHaltSleep();
+                        delayms(20);
+                        ExitHaltSleep();
+                        uart_txstring("exit sleep\r\n");
                     }
                 }
                 break;
 
             case WORNING:
+                if(led_on) {             //息屏状态，点亮屏幕，并且不息屏
+                    led_on = 0;
+                    OLED_Display_On();
+                }
                 if(LedF5 == 1) {             //息屏状态，点亮屏幕
                     LedF5 = 0;
-                    OLED_Display_On();
                     clear_screen();    //clear all dots
-                    mini_sprint((char *)buf,20, "收到%d条新消息!", num);
+                    mini_sprint((char *)buf, 20, "收到%d条新消息!", num);
                     display_GB2312_string(0, 1, buf);
                     cnt_t = 0;     //重置屏幕熄灭时间
                 }
@@ -219,14 +304,14 @@ int main(void)
                 switch (keyPassValue) {
                     case keyPassOne:
                         clear_screen();    //clear all dots
-                        mini_sprint((char *)buf,20, "请长按解除警报!");
+                        mini_sprint((char *)buf, 20, "请长按解除警报!");
                         display_GB2312_string(0, 1, buf);
-                        mini_sprint((char *)buf,20, "然后再读取消息!");
+                        mini_sprint((char *)buf, 20, "然后再读取消息!");
                         display_GB2312_string(2, 1, buf);
                         break;
                     case KeyPassLong:
                         clear_screen();    //clear all dots
-                        mini_sprint((char *)buf,20, "警报已解除!");
+                        mini_sprint((char *)buf, 20, "警报已解除!");
                         display_GB2312_string(0, 1, buf);
                         uart_txarr(&HelpMsg[1], 1, 1);
                         beep = 0;
@@ -253,7 +338,7 @@ int main(void)
                 if(LedF5 == 1) {             //息屏状态，点亮屏幕
                     LedF5 = 0;
                     clear_screen();    //clear all dots
-                    mini_sprint((char *)buf,20, "收到%d条新消息", num);
+                    mini_sprint((char *)buf, 20, "收到%d条新消息", num);
                     display_GB2312_string(0, 1, buf);
                     cnt_t = 0;     //重置屏幕熄灭时间
                 }
@@ -261,12 +346,12 @@ int main(void)
                 switch (keyPassValue) {
                     case keyPassOne:
                         clear_screen();    //clear all dots
-                        mini_sprint((char *)buf,20, "长按解除警报!");
+                        mini_sprint((char *)buf, 20, "长按解除警报!");
                         display_GB2312_string(0, 1, buf);
                         break;
                     case KeyPassLong:
                         clear_screen();    //clear all dots
-                        mini_sprint((char *)buf,20, "警报已解除!");
+                        mini_sprint((char *)buf, 20, "警报已解除!");
                         display_GB2312_string(0, 1, buf);
                         uart_txarr(&HelpMsg[1], 1, 1);
                         BeepInit();
@@ -292,28 +377,7 @@ int main(void)
     }
 }
 
-void ADCConver_Init(void)
-{
-    u8 idx;
-
-    CLK_PeripheralClockConfig(CLK_Peripheral_ADC1 , ENABLE);              //使能ADC1时钟
-    GPIO_Init(ADCPORT , ADCPIN , GPIO_Mode_In_FL_No_IT);  //设置ADCPIN悬空输入，并中断禁止
-
-    ADC_Cmd(ADC1 , ENABLE);               //使能ADC
-    for (idx = 0; idx < 50; idx++); //adc上电需要一段时间
-
-    ADC_VrefintCmd(ENABLE);//使能内部参考电压
-    ADC_Init(ADC1,
-             ADC_ConversionMode_Single,   //单次转换模式
-             ADC_Resolution_12Bit,        //12位精度转换械
-             ADC_Prescaler_2              //时钟设置为2分频
-            );
-
-    ADC_ChannelCmd(ADC1,
-                   ADC_Channel_17,         //设置为通道17进行采样
-                   ENABLE);
-}
-
+/*
 u16 ReadBattery(void)
 {
     ADC_SoftwareStartConv(ADC1);      //启动ADC
@@ -342,4 +406,4 @@ void CheckPower(void)
         uart_txarr(&powerMsg[1], 1, 1);
     }
 }
-
+*/
