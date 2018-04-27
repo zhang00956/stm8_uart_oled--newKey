@@ -64,7 +64,6 @@ void CheckPower(void);
 int main(void)
 {
     u8 power_on = 0;
-
     u8 arr[49]={0};
     SNode pack, pack_temp;
     u8 buf[20] = {0x00}; //顶一个局部缓冲区
@@ -163,6 +162,8 @@ int main(void)
                     beep = 0;
                     memset(arr,0x00,49);
                     mini_sprint(buf, 20, "充电器已断开");
+                    LED_GREEN_OFF;
+                    LED_RED_OFF;  
                     clear_screen();
                     display_GB2312_string(0, 16, buf);
                     uart_txstring("断\r\n");
