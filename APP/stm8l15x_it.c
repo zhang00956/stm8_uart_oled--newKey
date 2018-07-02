@@ -232,10 +232,10 @@ INTERRUPT_HANDLER(EXTI2_IRQHandler, 10)
             /* Cleat Interrupt pending bit */
             EXTI_ClearITPendingBit (EXTI_IT_Pin2);//清除中断标志           
             /* Check if the interrupt is from the COUNT_A pin or not */
-            if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2) == RESET)
-            {
+//            if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2) == RESET)
+//            {
                   GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT);
-            }
+//            }
         }  
      enableInterrupts();  
 }
@@ -524,7 +524,7 @@ INTERRUPT_HANDLER(USART1_RX_IRQHandler, 28)
             }
         }
         LEDInit();
-        UartScan();
+        
         USART_ClearITPendingBit(USART1, USART_IT_RXNE); //情况中断标志位
     }
 }

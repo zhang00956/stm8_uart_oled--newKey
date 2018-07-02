@@ -27,8 +27,8 @@
 #define USART_REC_LEN 64 //自定义缓冲区的长度
 #define CHE_LI  0XFF
 #define FEI_CHE_LI 0XFE
-#define CALL_REN   0XFD
-#define NORMAL_MSG  0XFC     
+#define CALL_REN   0x02
+#define NORMAL_MSG  0x01     
 extern u8 USART_RX_BUF[USART_REC_LEN];//缓冲区
 extern volatile u16 USART_RX_STA;//接受状态
 /* Exported types ------------------------------------------------------------*/

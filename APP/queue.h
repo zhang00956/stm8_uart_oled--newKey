@@ -9,6 +9,7 @@ typedef struct _SNode_t
 {   
     u8 data_len;
 	u8 body[49];
+    u16 callID;
 }SNode;
 //定义一个先进先出(FIFO)的队列NetQueue:
 typedef struct queue
@@ -27,5 +28,5 @@ extern bool IsFull(Pqueue Q);
 char size_queue(Pqueue Q);
 
 void set_pack(u8 *getdata,SNode *pack,u8 len);
-void get_pack(SNode *pack,u8 *arr);
+u16 get_pack(SNode *pack,u8 *arr);
 #endif

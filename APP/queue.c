@@ -59,22 +59,28 @@ char size_queue(Pqueue Q)
 {
    return (Q->rear-Q->front+FIFO_SIZE)%FIFO_SIZE;
 }
-void get_pack(SNode *pack,u8 *arr)
+//取出队列中的数组和id
+u16 get_pack(SNode *pack,u8 *arr)
 {
     u8 i;
     memset(arr,0x00,49);
+     
     for(i = 0; i < pack->data_len; i++)
       arr[i] = pack->body[i];
-   
+    
+   return pack->callID;
 }
+//串口得到的消息打包入队
 void set_pack(u8 *getdata,SNode *pack,u8 len)
 {
 	u8 i;
     memset(pack->body,0x00,49);
+    pack->callID = 0;
     pack->data_len = len;
    
 	for(i=0;i<len;i++)
 	{
-		pack->body[i] = getdata[i];
+		pack->body[i] = getdata[i+2];
 	}
+    pack->callID = (getdata[0]<< 8 ) | getdata[1];
 }

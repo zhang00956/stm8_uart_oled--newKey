@@ -6,6 +6,8 @@
 #include "LCD_ZK.h"
 #include "timer.h"
 
+uint8_t HexTable[]={'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
 char num = 0; //消息未读数量
 extern char num_r;
 extern queue Q;
@@ -15,64 +17,101 @@ extern u8 LedF5;
 
 void MyUart_Init(void)
 {
-  
-  GPIO_Init(GPIOC,GPIO_Pin_2,GPIO_Mode_In_PU_No_IT);//PC2 RX 
-  GPIO_Init(GPIOC,GPIO_Pin_3,GPIO_Mode_Out_PP_High_Fast);//PC3  TX
-  
-  CLK_PeripheralClockConfig(CLK_Peripheral_USART1,ENABLE);//使能串口时钟
 
-  USART_Init(USART1,9600, USART_WordLength_8b, USART_StopBits_1,
-      USART_Parity_No,(USART_Mode_TypeDef)(USART_Mode_Rx|USART_Mode_Tx));
-                                  
-  USART_ITConfig(USART1,USART_IT_RXNE, ENABLE);//使能接受中断 
-  USART_ITConfig(USART1,USART_IT_TXE, DISABLE);// 
-  USART_ITConfig(USART1,USART_IT_TC, DISABLE);
-  //USART_ITConfig(USART1,USART_IT_OR, DISABLE);//atention
-  USART_ITConfig(USART1,USART_IT_IDLE, DISABLE);
-  USART_ITConfig(USART1,USART_IT_ERR, DISABLE);
+    GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT); //PC2 RX
+    GPIO_Init(GPIOC, GPIO_Pin_3, GPIO_Mode_Out_PP_High_Fast); //PC3  TX
 
-  USART_Cmd(USART1, ENABLE);
- // memset(USART_RX_BUF,0x00,USART_REC_LEN);
-  enableInterrupts();
+    CLK_PeripheralClockConfig(CLK_Peripheral_USART1, ENABLE); //使能串口时钟
+
+    USART_Init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1,
+               USART_Parity_No, (USART_Mode_TypeDef)(USART_Mode_Rx | USART_Mode_Tx));
+
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE); //使能接受中断
+    USART_ITConfig(USART1, USART_IT_TXE, DISABLE); //
+    USART_ITConfig(USART1, USART_IT_TC, DISABLE);
+    //USART_ITConfig(USART1,USART_IT_OR, DISABLE);//atention
+    USART_ITConfig(USART1, USART_IT_IDLE, DISABLE);
+    USART_ITConfig(USART1, USART_IT_ERR, DISABLE);
+
+    USART_Cmd(USART1, ENABLE);
+// memset(USART_RX_BUF,0x00,USART_REC_LEN);
+    enableInterrupts();
+}
+void UartSendByte(unsigned char dat)
+{
+    USART1->DR = dat;
+    while(((USART1->SR) & 0x80) == 0x00);
+}
+void uart_txstring(uint8_t *p)
+{
+	while(*p != '\0'){
+        UartSendByte(*p++);
+	}    
+}
+void uart_txarr(uint8_t *p,uint16_t len,uint8_t endFlag)
+{
+	uint16_t i;
+	for(i=0;i<len;i++)
+	{
+        UartSendByte(p[i]);
+	}
+	if(endFlag)
+	{
+		UartSendByte(0x0d);
+		UartSendByte(0x0a);
+	}
 }
 
+void uart_txHex(unsigned char dat)
+{
+      UartSendByte('0');
+      UartSendByte('x');
+      UartSendByte(HexTable[dat>>4]);
+      UartSendByte(HexTable[dat&0x0f]);
+      UartSendByte(' ');
+      
+}
 void UART1_SendString(char buf[])
 {
-   unsigned int i = 0;
-   while(buf[i] != '\0') 
-   { 
-      
-       while(((USART1->SR) & 0x80) == 0x00);
-          USART_SendData8(USART1,buf[i++]); 
-   }
+    unsigned int i = 0;
+    while(buf[i] != '\0') {
+
+        while(((USART1->SR) & 0x80) == 0x00);
+        USART_SendData8(USART1, buf[i++]);
+    }
 }
 
 void UART1_SendNumber(int num)
 {
-  char buf[20];//顶一个局部缓冲区
-  
-  sprintf((char *)buf,"%d\n",num);
-  
-  UART1_SendString(buf);
-}
- 
-//重定向
-int fputc(int ch, FILE *f)
-{
-  while(((USART1->SR) & 0x80) == 0x00);
-          USART_SendData8(USART1,ch);
-    return ch;
+    char buf[20];//顶一个局部缓冲区
+
+    sprintf((char *)buf, "%d\n", num);
+
+    UART1_SendString(buf);
 }
 
-void UartScan(void)
+////重定向
+//int fputc(int ch, FILE *f)
+//{
+//    while(((USART1->SR) & 0x80) == 0x00);
+//    USART_SendData8(USART1, ch);
+//    return ch;
+//}
+
+uint8_t UartScan(void)
 {
-    u8 t;
+
     u8 len;
-    u8 buf[10];//顶一个局部缓冲区
+//    u8 t;
+//    u8 buf[10];//顶一个局部缓冲区
     SNode pack;
     //u8 arr[49];
     if(USART_RX_STA & 0x8000) {
         len = USART_RX_STA & 0x3fff; //得到此次接收到的数据长度
+        if(len < 4)
+        {
+            return 0;
+        }
 //			for(t=0;t<len;t++)
 //			{
 //                USART_SendData8(USART1,USART_RX_BUF[t]);
@@ -89,11 +128,7 @@ void UartScan(void)
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-//                clear_screen();    //clear all dots
-//                sprintf((char *)buf, "收到%d条新消息！", num);
-//                display_GB2312_string(0, 1, buf);
-//                //            display_GB2312_string(2,1,USART_RX_BUF);
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
                 break;
@@ -107,11 +142,7 @@ void UartScan(void)
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-//                clear_screen();    //clear all dots
-//                sprintf((char *)buf, "收到%d条新消息！", num);
-//                display_GB2312_string(0, 1, buf);
-//                //            display_GB2312_string(2,1,USART_RX_BUF);
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
                 break;
@@ -125,33 +156,33 @@ void UartScan(void)
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-//                clear_screen();    //clear all dots
-//                sprintf((char *)buf, "收到%d条新消息！", num);
-//                display_GB2312_string(0, 1, buf);
-//                //            display_GB2312_string(2,1,USART_RX_BUF);
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
                 break;
-            default :
-                num++;
+        case NORMAL_MSG:
+                          num++;
                 num_r = 0;
                 if(num > (FIFO_SIZE - 1)) {
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-//                clear_screen();    //clear all dots
-//                sprintf((char *)buf, "收到%d条新消息！", num);
-//                display_GB2312_string(0, 1, buf);
-//                //            display_GB2312_string(2,1,USART_RX_BUF);
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 //TIM2_Init();
-                AppState = NORMAL;
-                break;
+                if(AppState == NORMAL){
+                    AppState = NORMAL;
+                }
+                               
+          break;
+            default :
+             break;
         }
         USART_RX_STA = 0;
 //            memset(USART_RX_BUF,0x00,USART_REC_LEN);
     }
+    return 0;
 }
 

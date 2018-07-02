@@ -6,7 +6,7 @@
 #include "LCD_ZK.h"
 #include "timer.h"
 
-uint8_t HexTable[]={'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+uint8_t HexTable[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
 char num = 0; //消息未读数量
 extern char num_r;
@@ -23,7 +23,7 @@ void MyUart_Init(void)
 
     CLK_PeripheralClockConfig(CLK_Peripheral_USART1, ENABLE); //使能串口时钟
 
-    USART_Init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1,
+    USART_Init(USART1, 115200, USART_WordLength_8b, USART_StopBits_1,
                USART_Parity_No, (USART_Mode_TypeDef)(USART_Mode_Rx | USART_Mode_Tx));
 
     USART_ITConfig(USART1, USART_IT_RXNE, ENABLE); //使能接受中断
@@ -44,32 +44,30 @@ void UartSendByte(unsigned char dat)
 }
 void uart_txstring(uint8_t *p)
 {
-	while(*p != '\0'){
+    while(*p != '\0') {
         UartSendByte(*p++);
-	}    
+    }
 }
-void uart_txarr(uint8_t *p,uint16_t len,uint8_t endFlag)
+void uart_txarr(uint8_t *p, uint16_t len, uint8_t endFlag)
 {
-	uint16_t i;
-	for(i=0;i<len;i++)
-	{
+    uint16_t i;
+    for(i = 0; i < len; i++) {
         UartSendByte(p[i]);
-	}
-	if(endFlag)
-	{
-		UartSendByte(0x0d);
-		UartSendByte(0x0a);
-	}
+    }
+    if(endFlag) {
+        UartSendByte(0x0d);
+        UartSendByte(0x0a);
+    }
 }
 
 void uart_txHex(unsigned char dat)
 {
-      UartSendByte('0');
-      UartSendByte('x');
-      UartSendByte(HexTable[dat>>4]);
-      UartSendByte(HexTable[dat&0x0f]);
-      UartSendByte(' ');
-      
+    UartSendByte('0');
+    UartSendByte('x');
+    UartSendByte(HexTable[dat >> 4]);
+    UartSendByte(HexTable[dat & 0x0f]);
+    UartSendByte(' ');
+
 }
 void UART1_SendString(char buf[])
 {
@@ -108,17 +106,17 @@ uint8_t UartScan(void)
     //u8 arr[49];
     if(USART_RX_STA & 0x8000) {
         len = USART_RX_STA & 0x3fff; //得到此次接收到的数据长度
-        if(len < 4)
-        {
+        if(len < 4) {
+            USART_RX_STA = 0;
             return 0;
         }
 //			for(t=0;t<len;t++)
 //			{
 //                USART_SendData8(USART1,USART_RX_BUF[t]);
 //                while(((USART1->SR) & 0x80) == 0x00);
-//			}
-        LedF5 = 1;
+//			}        
         switch (USART_RX_BUF[0]) {
+/*           
             case CHE_LI :
                 beep = 1;
                 TIM2_Init();
@@ -128,9 +126,10 @@ uint8_t UartScan(void)
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
+                 LedF5 = 1;
                 break;
             case FEI_CHE_LI :
                 beep = 1;
@@ -142,10 +141,12 @@ uint8_t UartScan(void)
                     num = (FIFO_SIZE - 1);
                     DeQueue(&Q, &pack);
                 }
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
+                 LedF5 = 1;
                 break;
+*/          
             case CALL_REN :
                 beep = 1;
                 TIM2_Init();
@@ -157,11 +158,12 @@ uint8_t UartScan(void)
                     DeQueue(&Q, &pack);
                 }
 
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
+                 LedF5 = 1;
                 break;
-            default :
+            case NORMAL_MSG:
                 num++;
                 num_r = 0;
                 if(num > (FIFO_SIZE - 1)) {
@@ -169,13 +171,15 @@ uint8_t UartScan(void)
                     DeQueue(&Q, &pack);
                 }
 
-                set_pack(&USART_RX_BUF[3], &pack, len - 3);
+                set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 //TIM2_Init();
-                if(AppState == NORMAL){
+                if(AppState == NORMAL) {
                     AppState = NORMAL;
                 }
-                
+                 LedF5 = 1;
+                break;
+            default :
                 break;
         }
         USART_RX_STA = 0;

@@ -34,7 +34,7 @@
 #define CHARGEING 3055
 #define CHARGE_OVER 2773
 
-#define OFF_TIME           500
+#define OFF_TIME           1000
 
 
 
@@ -55,7 +55,8 @@ volatile u8 Power_charge = 0; //充电器连接状态检测
  *0xfe取消报警
  *0xfd已读消息
  */
-u8 HelpMsg[3] = {0xff, 0xfe, 0xfd};
+u8 HelpMsg[2] = {0xff, 0xfe};
+u8 ReadMsg[3] = {0xfd,0x00,0x00};
 u8 PowerMsg[4] = {0xfc, 0xfb, 0xfa, 0xf9};
 void ADCConver_Init(void);
 u16 ReadBattery(void);
@@ -69,7 +70,7 @@ int main(void)
     u8 buf[20] = {0x00}; //顶一个局部缓冲区
     u16 cnt_t = 0; //息屏计时
     u8 pos = 0;   //消息队列位置
-
+    u16 callID = 0;
     CLK_SYSCLKSourceSwitchCmd(ENABLE);//使能时钟切换
     CLK_HSICmd(ENABLE);
     CLK_SYSCLKSourceConfig(CLK_SYSCLKSource_HSI);//选择外部低速时钟作为时钟源
@@ -136,6 +137,9 @@ int main(void)
         Power_charge = 1;
     }
     while(1) {
+      
+        UartScan();
+      
         if(Power_charge) {          //只显示一次
             if(led_on) {             //息屏状态点亮屏幕
                 led_on = 0;
@@ -146,7 +150,7 @@ int main(void)
             clear_screen();
             mini_sprint(buf, 20, "充电器已连接");
             display_GB2312_string(0, 16, buf);
-            uart_txstring("充\r\n");
+//            uart_txstring("充\r\n");
             uart_txarr(&PowerMsg[0], 1, 1);
             while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
                 power_on = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
@@ -166,7 +170,7 @@ int main(void)
                     LED_RED_OFF;  
                     clear_screen();
                     display_GB2312_string(0, 16, buf);
-                    uart_txstring("断\r\n");
+//                    uart_txstring("断\r\n");
                     uart_txarr(&PowerMsg[1], 1, 1);
                     break;
                 }
@@ -214,31 +218,37 @@ int main(void)
                             OLED_Display_On();
                             cnt_t = 0;     //重置屏幕熄灭时间
                         } else {                  //非单次按下，读消息
-                            if(num > 0) {
-                                num--;
-                                num_r++;
+                          
+                             
+                            if(num > 0) {   //如果有新消息
+                                num--;         //读一次 信息次数--
+                                num_r++;        //已读数++
                             } else {
                                 num_r = 0;
                             }
-                            if(DeQueue(&Q, &pack)) {
-                                get_pack(&pack, arr);
-                                if(!EnQueue(&Q_old, &pack)) {
-                                    DeQueue(&Q_old, &pack_temp);
+                             
+                            if(DeQueue(&Q, &pack)) {        //如果消息队列中有消息，出队，顺便入历史队
+                                callID = get_pack(&pack, arr);
+                                if(!EnQueue(&Q_old, &pack)) {   //历史队满了，进不去
+                                    DeQueue(&Q_old, &pack_temp);    //丢弃最老的
                                     EnQueue(&Q_old, &pack);
                                 }
                                 clear_screen();    //clear all dots
                                 mini_sprint((char *)buf, 20, "消息(%d)未读(%d)", num_r, num);
                                 display_GB2312_string(0, 1, buf);
                                 display_GB2312_string(2, 1, arr);
-                                num_l = 0;
-                                uart_txarr(&HelpMsg[2], 1, 1);   //暂定把已读功能放在这里
-                            } else {
+                                num_l = 0;      //读过新消息历史消息重置
+                                ReadMsg[1] = (callID & 0xff00) >> 8;
+                                ReadMsg[2] = callID;
+                                uart_txarr(ReadMsg, 3, 1);   //暂定把已读功能放在这里
+                            } else {                            //如果没有新消息读历史消息
                                 if (size_queue(&Q_old) > 0) {
                                     num_l++;
                                     if(num_l > size_queue(&Q_old)) {
                                         num_l = 1;
                                     }
-                                    pos = (Q_old.front + num_l) % (size_queue(&Q_old) + 1);
+                                    pos = (Q_old.front + num_l) % (size_queue(&Q_old) + 1);//一个转圈循环算法，是一队头为基，num_l为加数
+//                                    mini_print("f=%d pos=%d\r\n",Q_old.front,pos);
                                     get_pack(&(Q_old.Pack[pos]), arr);
                                     clear_screen();    //clear all dots
                                     mini_sprint((char *)buf, 20, "历史消息(%d)", num_l);
@@ -274,17 +284,17 @@ int main(void)
                         break;
                 }
                 if(AppState == NORMAL) {
-                    delayms(20);
+                    delayms(10);
                     cnt_t++;
                     if(cnt_t > OFF_TIME) {
                         cnt_t = 0;
                         OLED_Display_Off();
                         led_on = 1;
-//                        CheckPower();
-                        EnterHaltSleep();
-                        delayms(20);
-                        ExitHaltSleep();
-                        uart_txstring("exit sleep\r\n");
+                       /* CheckPower();*/
+//                        EnterHaltSleep();
+//                        delayms(20);
+//                        ExitHaltSleep();
+//                        uart_txstring("exit sleep\r\n");
                     }
                 }
                 break;
@@ -328,7 +338,7 @@ int main(void)
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
                         sound2();
                     }
-                    delayms(20);
+                    delayms(10);
                 }
                 break;
             case CALLING:
@@ -368,7 +378,7 @@ int main(void)
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
                         sound2();
                     }
-                    delayms(20);
+                    delayms(10);
                 }
                 break;
             default:

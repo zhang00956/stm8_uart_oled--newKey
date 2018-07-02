@@ -3,7 +3,7 @@
 
 #include "stm8l15x.h"
 
-#define KEY_LONG_PASS_TIME 50
+#define KEY_LONG_PASS_TIME 100
 #define TEST_TIME          800  //²ú²âÊ±¼ä
 
 #define KEY_NORMAL         0X40
