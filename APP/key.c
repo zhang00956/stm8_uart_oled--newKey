@@ -8,10 +8,14 @@ void GPIO_Config(void)
     GPIO_Init(GPIOA, GPIO_Pin_4, GPIO_Mode_Out_PP_High_Slow); //yellow
     GPIO_Init(GPIOA, GPIO_Pin_5, GPIO_Mode_Out_PP_High_Slow); //GREEN
 
-    GPIO_Init(GPIOB, GPIO_Pin_6, GPIO_Mode_Out_PP_Low_Slow); //辅助   0:1 灭
-    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_High_Slow);
+    GPIO_Init(GPIOB, GPIO_Pin_6, GPIO_Mode_Out_PP_Low_Slow); //辅助 1：0 灭
+    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_High_Slow );
     
     GPIO_Init(GPIOA, GPIO_Pin_6, GPIO_Mode_Out_PP_High_Slow); //beep
+    
+//    GPIO_Init(AD_PORT, AD_PIN, GPIO_Mode_In_FL_No_IT); //PB2,低电量检测口
+//    GPIO_Init(PWM_PORT,PWM_PIN,GPIO_Mode_Out_PP_Low_Slow);  //PB4  0:恒流驱动 1：%70亮度 
+//    GPIO_Init(MAIN_LED_PORT,MAIN_LED_PIN,GPIO_Mode_Out_PP_Low_Slow); //控制主辅灯引脚PD7,PD7=1开启控制灯珠功能
     
     
 //    GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_No_IT);

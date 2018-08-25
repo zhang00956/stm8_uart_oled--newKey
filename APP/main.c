@@ -50,6 +50,9 @@ volatile u8 LedF5 = 0;   //是否刷新显示收到消息
 volatile u8 beep = 0;//蜂鸣器命令
 volatile u8 keyPassValue = 0; //长按短按状态
 volatile u8 Power_charge = 0; //充电器连接状态检测
+volatile u16 screen_off_cnt = 0; //息屏计时
+volatile u8 LowPower = 0;
+extern volatile u16 TIM3_Conut;
 
 /*0xff求救信息
  *0xfe取消报警
@@ -67,8 +70,7 @@ int main(void)
     u8 power_on = 0;
     u8 arr[49]={0};
     SNode pack, pack_temp;
-    u8 buf[20] = {0x00}; //顶一个局部缓冲区
-    u16 cnt_t = 0; //息屏计时
+    u8 buf[20] = {0x00}; //顶一个局部缓冲区    
     u8 pos = 0;   //消息队列位置
     u16 callID = 0;
     CLK_SYSCLKSourceSwitchCmd(ENABLE);//使能时钟切换
@@ -87,8 +89,11 @@ int main(void)
     MyUart_Init();
     print_init_module(uart_txstring);
     initial_lcd();
+    
+
     clear_screen();    //clear all dots
     display_128x64(bmp1);
+
     GPIO_Config();
 
 //     ADCConver_Init();
@@ -133,26 +138,48 @@ int main(void)
         transfer_command_lcd(0x01);
         transfer_command_lcd(0x2F);
     	lcd_cs1(1);*/
-    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == (uint8_t)ADCPIN){   //如果是插着充电器开机
-        Power_charge = 1;
+    
+    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET){   //如果是插着充电器开机
+        Power_charge = 1;       
     }
+    TIM3_Init(); //初始化一下汇报充电状态定时器
+    
     while(1) {
       
         UartScan();
+        
+//        if( (GPIO_ReadInputDataBit(AD_PORT, AD_PIN) == SET) && (LowPower==0) ){ //低电量,只通知一次
+//             LowPower=1;
+//             MAIN_LEN_OFF;//关闭PD7,关闭主灯
+//            if(led_on) {             //息屏状态点亮屏幕
+//                led_on = 0;
+//                OLED_Display_On();
+//                screen_off_cnt = 0;     //重置屏幕熄灭时间
+//            }
+//            screen_off_cnt = 0;
+//            clear_screen();
+//            display_GB2312_string(0, 32, "电量过低");            
+//        }
       
         if(Power_charge) {          //只显示一次
             if(led_on) {             //息屏状态点亮屏幕
                 led_on = 0;
                 OLED_Display_On();
-                cnt_t = 0;     //重置屏幕熄灭时间
+                screen_off_cnt = 0;     //重置屏幕熄灭时间
             }
-            cnt_t = 0;
+//            MAIN_LEN_ON;//打开主灯控制功能
+            LowPower=0;
+            screen_off_cnt = 0;
             clear_screen();
-            mini_sprint(buf, 20, "充电器已连接");
+            mini_sprint(buf, 20, "充电器已连接");           
             display_GB2312_string(0, 16, buf);
-//            uart_txstring("充\r\n");
+//            uart_txstring("充\r\n");                                   
+            TIM3_Conut = 0;
+            TIM3_Init(); //初始化一下汇报充电状态定时器
             uart_txarr(&PowerMsg[0], 1, 1);
+                       
             while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
+                UartScan();
                 power_on = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
                 if(power_on == 0) {                  
 
@@ -171,6 +198,8 @@ int main(void)
                     clear_screen();
                     display_GB2312_string(0, 16, buf);
 //                    uart_txstring("断\r\n");
+                    TIM3_Conut = 0;
+                    TIM3_Init(); //初始化一下汇报充电状态定时器                    
                     uart_txarr(&PowerMsg[1], 1, 1);
                     break;
                 }
@@ -216,10 +245,13 @@ int main(void)
                         if(led_on) {             //息屏状态，单次按键，初次按下时点亮屏幕，不读消息
                             led_on = 0;
                             OLED_Display_On();
-                            cnt_t = 0;     //重置屏幕熄灭时间
-                        } else {                  //非单次按下，读消息
-                          
-                             
+                            screen_off_cnt = 0;     //重置屏幕熄灭时间
+//                            if(GPIO_ReadInputDataBit(AD_PORT, AD_PIN) == SET){ //低电量提醒，需按键按亮屏幕
+//                              if(LedF5==0){//等到没有新消息刷新的时候再显示
+//                                display_GB2312_string(0, 32, "电量过低");
+//                              }
+//                            }                           
+                        } else {                  //非单次按下，读消息                                                     
                             if(num > 0) {   //如果有新消息
                                 num--;         //读一次 信息次数--
                                 num_r++;        //已读数++
@@ -260,7 +292,7 @@ int main(void)
                                     display_GB2312_string(0, 1, buf);
                                 }
                             }
-                            cnt_t = 0;     //读了消息就重置屏幕熄灭时间
+                            screen_off_cnt = 0;     //读了消息就重置屏幕熄灭时间
                         }
                         break;
 
@@ -276,7 +308,7 @@ int main(void)
                             LedF5 = 0;
                         }
                         beep = 1;
-                        cnt_t = 0;     //重置屏幕熄灭时间
+                        screen_off_cnt = 0;     //重置屏幕熄灭时间
                         AppState = CALLING;
                         break;
 
@@ -285,9 +317,9 @@ int main(void)
                 }
                 if(AppState == NORMAL) {
                     delayms(10);
-                    cnt_t++;
-                    if(cnt_t > OFF_TIME) {
-                        cnt_t = 0;
+                    screen_off_cnt++;
+                    if(screen_off_cnt > OFF_TIME) {
+                        screen_off_cnt = 0;
                         OLED_Display_Off();
                         led_on = 1;
                        /* CheckPower();*/
@@ -309,7 +341,7 @@ int main(void)
                     clear_screen();    //clear all dots
                     mini_sprint((char *)buf, 20, "收到%d条新消息!", num);
                     display_GB2312_string(0, 1, buf);
-                    cnt_t = 0;     //重置屏幕熄灭时间
+                    screen_off_cnt = 0;     //重置屏幕熄灭时间
                 }
                 keyPassValue = keyScan();
                 switch (keyPassValue) {
@@ -351,7 +383,7 @@ int main(void)
                     clear_screen();    //clear all dots
                     mini_sprint((char *)buf, 20, "收到%d条新消息", num);
                     display_GB2312_string(0, 1, buf);
-                    cnt_t = 0;     //重置屏幕熄灭时间
+                    screen_off_cnt = 0;     //重置屏幕熄灭时间
                 }
                 keyPassValue = keyScan();
                 switch (keyPassValue) {
@@ -384,7 +416,7 @@ int main(void)
             default:
                 break;
         }
-
+        
     }
 }
 

@@ -14,6 +14,8 @@ extern queue Q;
 extern u8 AppState;
 extern u8 beep;
 extern u8 LedF5;
+extern volatile u8 led_on;
+extern volatile u16 screen_off_cnt;
 
 void MyUart_Init(void)
 {
@@ -99,7 +101,7 @@ void UART1_SendNumber(int num)
 uint8_t UartScan(void)
 {
 
-    u8 len;
+    u8 len;   
 //    u8 t;
 //    u8 buf[10];//顶一个局部缓冲区
     SNode pack;
@@ -114,39 +116,39 @@ uint8_t UartScan(void)
 //			{
 //                USART_SendData8(USART1,USART_RX_BUF[t]);
 //                while(((USART1->SR) & 0x80) == 0x00);
-//			}        
+//			}
         switch (USART_RX_BUF[0]) {
-/*           
-            case CHE_LI :
-                beep = 1;
-                TIM2_Init();
-                num++;
-                num_r = 0;
-                if(num > (FIFO_SIZE - 1)) {
-                    num = (FIFO_SIZE - 1);
-                    DeQueue(&Q, &pack);
-                }
-                set_pack(&USART_RX_BUF[1], &pack, len - 3);
-                EnQueue(&Q, &pack);
-                AppState = WORNING;
-                 LedF5 = 1;
-                break;
-            case FEI_CHE_LI :
-                beep = 1;
-                TIM2_Init();
+                /*
+                            case CHE_LI :
+                                beep = 1;
+                                TIM2_Init();
+                                num++;
+                                num_r = 0;
+                                if(num > (FIFO_SIZE - 1)) {
+                                    num = (FIFO_SIZE - 1);
+                                    DeQueue(&Q, &pack);
+                                }
+                                set_pack(&USART_RX_BUF[1], &pack, len - 3);
+                                EnQueue(&Q, &pack);
+                                AppState = WORNING;
+                                 LedF5 = 1;
+                                break;
+                            case FEI_CHE_LI :
+                                beep = 1;
+                                TIM2_Init();
 
-                num++;
-                num_r = 0;
-                if(num > (FIFO_SIZE - 1)) {
-                    num = (FIFO_SIZE - 1);
-                    DeQueue(&Q, &pack);
-                }
-                set_pack(&USART_RX_BUF[1], &pack, len - 3);
-                EnQueue(&Q, &pack);
-                AppState = WORNING;
-                 LedF5 = 1;
-                break;
-*/          
+                                num++;
+                                num_r = 0;
+                                if(num > (FIFO_SIZE - 1)) {
+                                    num = (FIFO_SIZE - 1);
+                                    DeQueue(&Q, &pack);
+                                }
+                                set_pack(&USART_RX_BUF[1], &pack, len - 3);
+                                EnQueue(&Q, &pack);
+                                AppState = WORNING;
+                                 LedF5 = 1;
+                                break;
+                          */
             case CALL_REN :
                 beep = 1;
                 TIM2_Init();
@@ -161,29 +163,50 @@ uint8_t UartScan(void)
                 set_pack(&USART_RX_BUF[1], &pack, len - 3);
                 EnQueue(&Q, &pack);
                 AppState = WORNING;
-                 LedF5 = 1;
+                LedF5 = 1;
                 break;
             case NORMAL_MSG:
-                num++;
-                num_r = 0;
-                if(num > (FIFO_SIZE - 1)) {
-                    num = (FIFO_SIZE - 1);
-                    DeQueue(&Q, &pack);
+                if(*(u16*)&USART_RX_BUF[1]) {
+                    num++;
+                    num_r = 0;
+                    if(num > (FIFO_SIZE - 1)) {
+                        num = (FIFO_SIZE - 1);
+                        DeQueue(&Q, &pack);
+                    }
+
+                    set_pack(&USART_RX_BUF[1], &pack, len - 3);
+                    EnQueue(&Q, &pack);
+                    //TIM2_Init();
+                    if(AppState == NORMAL) {
+                        AppState = NORMAL;
+                    }
+                    LedF5 = 1;
+                } else { //如果是第0号消息
+                    if(led_on) {             //息屏状态，点亮屏幕
+                        led_on = 0;
+                        OLED_Display_On();
+                    }
+                    screen_off_cnt = 0;
+                    if(USART_RX_BUF[3] == 0xfc) {
+                        clear_screen();
+                        display_GB2312_string(0, 32, "充电中");                       
+                        TIM3_Cmd(DISABLE);
+                    } else if(USART_RX_BUF[3] == 0xfb) {
+                        clear_screen();
+                        display_GB2312_string(0, 32, "充电结束");                        
+                        TIM3_Cmd(DISABLE);
+                    } else {
+                        clear_screen();
+                        display_GB2312_string(0, 1, &USART_RX_BUF[3]);
+                    }
                 }
 
-                set_pack(&USART_RX_BUF[1], &pack, len - 3);
-                EnQueue(&Q, &pack);
-                //TIM2_Init();
-                if(AppState == NORMAL) {
-                    AppState = NORMAL;
-                }
-                 LedF5 = 1;
                 break;
             default :
                 break;
         }
         USART_RX_STA = 0;
-//            memset(USART_RX_BUF,0x00,USART_REC_LEN);
+        memset(USART_RX_BUF, 0x00, USART_REC_LEN);
     }
     return 0;
 }

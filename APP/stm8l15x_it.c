@@ -31,11 +31,13 @@
 
 u8 USART_RX_BUF[USART_REC_LEN];//缓冲区
 volatile u16 USART_RX_STA = 0;//接受状态
-u16 TIM2_Conut = 0;
+volatile u16 TIM2_Conut = 0;
+volatile u16 TIM3_Conut = 0;
 extern u8 AppState;
 extern u8 keyPassValue;
 extern u8 led_on;//第一次按按键点亮屏幕
 extern volatile u8 Power_charge;
+extern u8 PowerMsg[4];
 /** @addtogroup STM8L15x_StdPeriph_Examples
   * @{
   */
@@ -206,14 +208,20 @@ INTERRUPT_HANDLER(EXTI1_IRQHandler, 9)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
-disableInterrupts();  
-      if(EXTI_GetITStatus(EXTI_IT_Pin1))
-        {
-            EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
+//  u8 test = 0;
+    disableInterrupts();
+    if(EXTI_GetITStatus(EXTI_IT_Pin1)) {
+        EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
+        delayms(20);//消抖
+//        test = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
+        if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET) {
+//        if(test)
+//        {
             GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_No_IT);
             Power_charge = 1;
-        }      
-enableInterrupts();       
+        }
+    }
+    enableInterrupts();
 }
 
 /**
@@ -226,18 +234,17 @@ INTERRUPT_HANDLER(EXTI2_IRQHandler, 10)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
-  disableInterrupts();
-    if(EXTI_GetITStatus(EXTI_IT_Pin2))
-        {
-            /* Cleat Interrupt pending bit */
-            EXTI_ClearITPendingBit (EXTI_IT_Pin2);//清除中断标志           
-            /* Check if the interrupt is from the COUNT_A pin or not */
+    disableInterrupts();
+    if(EXTI_GetITStatus(EXTI_IT_Pin2)) {
+        /* Cleat Interrupt pending bit */
+        EXTI_ClearITPendingBit (EXTI_IT_Pin2);//清除中断标志
+        /* Check if the interrupt is from the COUNT_A pin or not */
 //            if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2) == RESET)
 //            {
-                  GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT);
+        GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT);
 //            }
-        }  
-     enableInterrupts();  
+    }
+    enableInterrupts();
 }
 
 /**
@@ -288,21 +295,19 @@ INTERRUPT_HANDLER(EXTI6_IRQHandler, 14)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
-  disableInterrupts();
-    if(EXTI_GetITStatus(EXTI_IT_Pin6))
-        {
-            /* Cleat Interrupt pending bit */
-            EXTI_ClearITPendingBit (EXTI_IT_Pin6);//清除中断标志
-            delayms(5);//消抖
-            /* Check if the interrupt is from the COUNT_A pin or not */
-            if(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET)
-            {
-                  GPIO_Init(GPIOD, GPIO_Pin_6, GPIO_Mode_In_PU_No_IT);            
-                  led_on = 0;
-                  OLED_Display_On();              
-            }
-        }  
-     enableInterrupts();
+    disableInterrupts();
+    if(EXTI_GetITStatus(EXTI_IT_Pin6)) {
+        /* Cleat Interrupt pending bit */
+        EXTI_ClearITPendingBit (EXTI_IT_Pin6);//清除中断标志
+        delayms(5);//消抖
+        /* Check if the interrupt is from the COUNT_A pin or not */
+        if(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) {
+            GPIO_Init(GPIOD, GPIO_Pin_6, GPIO_Mode_In_PU_No_IT);
+            led_on = 0;
+            OLED_Display_On();
+        }
+    }
+    enableInterrupts();
 }
 
 /**
@@ -411,6 +416,17 @@ INTERRUPT_HANDLER(TIM3_UPD_OVF_TRG_BRK_IRQHandler, 21)
     /* In order to detect unexpected events during development,
        it is recommended to set a breakpoint on the following instruction.
     */
+    TIM3_Conut++;
+    if(TIM3_Conut >= 24000) { //10ms一次中断，累计120秒记数
+        TIM3_Conut = 0;
+//        disableInterrupts();
+        if(Power_charge) {
+            uart_txarr(&PowerMsg[0], 1, 1); //充电
+        } else {
+            uart_txarr(&PowerMsg[1], 1, 1);//断开
+        }
+//        enableInterrupts();
+    }
     TIM3_ClearITPendingBit(TIM3_IT_Update); //清除中断标志
 }
 /**
@@ -524,7 +540,7 @@ INTERRUPT_HANDLER(USART1_RX_IRQHandler, 28)
             }
         }
         LEDInit();
-        
+
         USART_ClearITPendingBit(USART1, USART_IT_RXNE); //情况中断标志位
     }
 }
