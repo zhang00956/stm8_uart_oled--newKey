@@ -3,7 +3,7 @@
 
 #include "stm8l15x.h"
 
-#define KEY_LONG_PASS_TIME 100
+#define KEY_LONG_PASS_TIME 700
 #define TEST_TIME          800  //产测时间
 
 #define KEY_NORMAL         0X40
@@ -15,16 +15,22 @@
 #define LED_RED_PORT    GPIOA
 #define LED_RED_PIN     GPIO_Pin_4
 
-//#define PWM_PORT        GPIOB
-//#define PWM_PIN         GPIO_Pin_4
-//
-//#define MAIN_LED_PORT   GPIOD
-//#define MAIN_LED_PIN    GPIO_Pin_7
-//#define MAIN_LEN_OFF    GPIO_ResetBits(MAIN_LED_PORT,MAIN_LED_PIN)
-//#define MAIN_LEN_ON     GPIO_SetBits(MAIN_LED_PORT,MAIN_LED_PIN)
+//版本2
+#define BANBEN2         0
 
-//#define AD_PORT         GPIOB
-//#define AD_PIN          GPIO_Pin_2
+#if BANBEN2
+#define PWM_PORT        GPIOB
+#define PWM_PIN         GPIO_Pin_4
+
+#define MAIN_LED_PORT   GPIOD
+#define MAIN_LED_PIN    GPIO_Pin_7
+#define MAIN_LED_OFF    GPIO_ResetBits(MAIN_LED_PORT,MAIN_LED_PIN)
+#define MAIN_LED_ON     GPIO_SetBits(MAIN_LED_PORT,MAIN_LED_PIN)
+
+#define AD_PORT         GPIOB
+#define AD_PIN          GPIO_Pin_2
+#endif
+
 
 #define LED_GREEN_ON     GPIO_ResetBits(LED_GREEN_PORT,LED_GREEN_PIN)
 #define LED_RED_ON       GPIO_ResetBits(LED_RED_PORT,LED_RED_PIN)
@@ -46,4 +52,5 @@ void LEDInit(void);
 unsigned char keyScan(void);
 unsigned char keyScan2(void);
 unsigned char KeyRead( void );
+unsigned char PowerScan(void);
 #endif

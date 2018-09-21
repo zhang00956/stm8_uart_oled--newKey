@@ -6,6 +6,9 @@
 #include "LCD_ZK.h"
 #include "timer.h"
 
+//用户代码的起始地址
+#define MAIN_USER_Start_ADDR     ((uint32_t)0x8000+0X2000)
+
 uint8_t HexTable[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
 char num = 0; //消息未读数量
@@ -98,6 +101,9 @@ void UART1_SendNumber(int num)
 //    return ch;
 //}
 
+typedef void (*VOIDFUN)();   
+const VOIDFUN RestMain =(VOIDFUN) 0X8000;
+
 uint8_t UartScan(void)
 {
 
@@ -188,13 +194,18 @@ uint8_t UartScan(void)
                     }
                     screen_off_cnt = 0;
                     if(USART_RX_BUF[3] == 0xfc) {
-                        clear_screen();
-                        display_GB2312_string(0, 32, "充电中");                       
+//                        clear_screen();
+//                        display_GB2312_string(0, 32, "充电中");                       
                         TIM3_Cmd(DISABLE);
                     } else if(USART_RX_BUF[3] == 0xfb) {
-                        clear_screen();
-                        display_GB2312_string(0, 32, "充电结束");                        
+//                        clear_screen();
+//                        display_GB2312_string(0, 32, "充电结束");                        
                         TIM3_Cmd(DISABLE);
+                    }else if(USART_RX_BUF[3] == 0xAC && USART_RX_BUF[4]==0XAC){
+                          FLASH_Unlock(FLASH_MemType_Program);
+                          FLASH_EraseByte(MAIN_USER_Start_ADDR-1);    //清除APP标记
+                          RestMain();   //复位
+                    
                     } else {
                         clear_screen();
                         display_GB2312_string(0, 1, &USART_RX_BUF[3]);

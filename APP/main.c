@@ -59,18 +59,29 @@ extern volatile u16 TIM3_Conut;
  *0xfd已读消息
  */
 u8 HelpMsg[2] = {0xff, 0xfe};
-u8 ReadMsg[3] = {0xfd,0x00,0x00};
+u8 ReadMsg[3] = {0xfd, 0x00, 0x00};
 u8 PowerMsg[4] = {0xfc, 0xfb, 0xfa, 0xf9};
 void ADCConver_Init(void);
 u16 ReadBattery(void);
 void CheckPower(void);
-
+void IWDG_init(void)
+{
+    IWDG->KR = 0XCC; //启动IWDG
+    IWDG->KR = 0X55; //解除KR PLR寄存器保护
+    IWDG->RLR = 0XFF; //看门狗计数器重装载数值
+    IWDG->PR = 0X06; //分频系数为64?1.02s
+    IWDG->KR = 0XAA; //喂狗
+}
+void WatchDog_Feed(void)
+{
+    IWDG->KR = 0XAA;
+}
 int main(void)
 {
     u8 power_on = 0;
-    u8 arr[49]={0};
+    u8 arr[49] = {0};
     SNode pack, pack_temp;
-    u8 buf[20] = {0x00}; //顶一个局部缓冲区    
+    u8 buf[20] = {0x00}; //顶一个局部缓冲区
     u8 pos = 0;   //消息队列位置
     u16 callID = 0;
     CLK_SYSCLKSourceSwitchCmd(ENABLE);//使能时钟切换
@@ -89,13 +100,13 @@ int main(void)
     MyUart_Init();
     print_init_module(uart_txstring);
     initial_lcd();
-    
+
 
     clear_screen();    //clear all dots
     display_128x64(bmp1);
 
     GPIO_Config();
-
+    IWDG_init();
 //     ADCConver_Init();
 
 //    u16 u16_adc1_value;
@@ -138,92 +149,94 @@ int main(void)
         transfer_command_lcd(0x01);
         transfer_command_lcd(0x2F);
     	lcd_cs1(1);*/
-    
-    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET){   //如果是插着充电器开机
-        Power_charge = 1;       
+
+    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET) {  //如果是插着充电器开机
+        Power_charge = 1;
     }
     TIM3_Init(); //初始化一下汇报充电状态定时器
-    
+
     while(1) {
-      
+        WatchDog_Feed();
         UartScan();
-        
-//        if( (GPIO_ReadInputDataBit(AD_PORT, AD_PIN) == SET) && (LowPower==0) ){ //低电量,只通知一次
-//             LowPower=1;
-//             MAIN_LEN_OFF;//关闭PD7,关闭主灯
-//            if(led_on) {             //息屏状态点亮屏幕
-//                led_on = 0;
-//                OLED_Display_On();
-//                screen_off_cnt = 0;     //重置屏幕熄灭时间
-//            }
-//            screen_off_cnt = 0;
-//            clear_screen();
-//            display_GB2312_string(0, 32, "电量过低");            
-//        }
-      
+#if BANBEN2
+        if( (GPIO_ReadInputDataBit(AD_PORT, AD_PIN) == SET) && (LowPower == 0) ) { //低电量,只通知一次
+            LowPower = 1;
+            MAIN_LED_OFF;//关闭PD7,关闭主灯
+            if(led_on) {             //息屏状态点亮屏幕
+                led_on = 0;
+                OLED_Display_On();
+            }
+            screen_off_cnt = 0;//重置屏幕熄灭时间
+            clear_screen();
+            display_GB2312_string(0, 32, "电量过低");
+        }
+        MAIN_LED_ON;//打开主灯控制功能
+        LowPower = 0;
+#endif
         if(Power_charge) {          //只显示一次
             if(led_on) {             //息屏状态点亮屏幕
                 led_on = 0;
                 OLED_Display_On();
-                screen_off_cnt = 0;     //重置屏幕熄灭时间
             }
-//            MAIN_LEN_ON;//打开主灯控制功能
-            LowPower=0;
-            screen_off_cnt = 0;
+            initial_lcd();//每次充电复位lcd
+            screen_off_cnt = 0;     //重置屏幕熄灭时间
             clear_screen();
-            mini_sprint(buf, 20, "充电器已连接");           
+            mini_sprint(buf, 20, "充电器已连接");
             display_GB2312_string(0, 16, buf);
-//            uart_txstring("充\r\n");                                   
+//            uart_txstring("充\r\n");
             TIM3_Conut = 0;
             TIM3_Init(); //初始化一下汇报充电状态定时器
             uart_txarr(&PowerMsg[0], 1, 1);
-                       
+            beep = 0;
+            AppState = NORMAL;
             while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
+                WatchDog_Feed();
                 UartScan();
-                power_on = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
-                if(power_on == 0) {                  
+                power_on = PowerScan();
+                if(power_on == 2) {
 
                     asm("sim");//close IT
-                    Power_charge = 0; 
-                    EXTI_SetPinSensitivity(ADC_EXTI_PIN, EXTI_Trigger_Rising); //上升沿中断                   
+                    Power_charge = 0;
+                    EXTI_SetPinSensitivity(ADC_EXTI_PIN, EXTI_Trigger_Rising); //上升沿中断
                     GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_IT);//初始充电接口
                     EXTI_ClearITPendingBit(EXTI_IT_Pin1);
                     asm("rim");
+                    UartScan();
                     keyPassValue = 0;//断开之后重置按键状态
                     beep = 0;
-                    memset(arr,0x00,49);
+                    memset(arr, 0x00, 49);
                     mini_sprint(buf, 20, "充电器已断开");
                     LED_GREEN_OFF;
-                    LED_RED_OFF;  
+                    LED_RED_OFF;
                     clear_screen();
                     display_GB2312_string(0, 16, buf);
 //                    uart_txstring("断\r\n");
                     TIM3_Conut = 0;
-                    TIM3_Init(); //初始化一下汇报充电状态定时器                    
+                    TIM3_Init(); //初始化一下汇报充电状态定时器
                     uart_txarr(&PowerMsg[1], 1, 1);
                     break;
                 }
                 keyPassValue = keyScan2();
                 if(keyPassValue == KeyPassLong) {
-                  if(beep == 1){
-                    mini_sprint(buf, 20, "测试结束");
-                    clear_screen();
-                    display_GB2312_string(0, 32, buf);
-                    beep = 0;
-                    LED_GREEN_OFF;
-                    LED_RED_OFF;  
-                    uart_txarr(&PowerMsg[3], 1, 1);
-                  }else{
-                    mini_sprint(buf, 20, "产测模式");
-                    clear_screen();
-                    display_GB2312_string(0, 32, buf);                    
-                    mini_sprint(arr, 49, "请注意观察上位机数据,LED和蜂鸣器是否正常!!");
-                    display_GB2312_string(2, 0, arr);
-                    beep = 1;
-                    LED_GREEN_ON; 
-                    LED_RED_ON;   
-                    uart_txarr(&PowerMsg[2], 1, 1);
-                  }
+                    if(beep == 1) {
+                        mini_sprint(buf, 20, "测试结束");
+                        clear_screen();
+                        display_GB2312_string(0, 32, buf);
+                        beep = 0;
+                        LED_GREEN_OFF;
+                        LED_RED_OFF;
+                        uart_txarr(&PowerMsg[3], 1, 1);
+                    } else {
+                        mini_sprint(buf, 20, "产测模式");
+                        clear_screen();
+                        display_GB2312_string(0, 32, buf);
+                        mini_sprint(arr, 49, "请注意观察上位机数据,LED和蜂鸣器是否正常!!");
+                        display_GB2312_string(2, 0, arr);
+                        beep = 1;
+                        LED_GREEN_ON;
+                        LED_RED_ON;
+                        uart_txarr(&PowerMsg[2], 1, 1);
+                    }
                 }
                 if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
                     sound2();
@@ -246,19 +259,22 @@ int main(void)
                             led_on = 0;
                             OLED_Display_On();
                             screen_off_cnt = 0;     //重置屏幕熄灭时间
-//                            if(GPIO_ReadInputDataBit(AD_PORT, AD_PIN) == SET){ //低电量提醒，需按键按亮屏幕
-//                              if(LedF5==0){//等到没有新消息刷新的时候再显示
-//                                display_GB2312_string(0, 32, "电量过低");
-//                              }
-//                            }                           
-                        } else {                  //非单次按下，读消息                                                     
+#if BANBEN2
+                            if(LowPower) { //低电量提醒，需按键按亮屏幕
+                                if(LedF5 == 0) { //等到没有新消息刷新的时候再显示
+                                    clear_screen();    //clear all dots
+                                    display_GB2312_string(0, 32, "电量过低");
+                                }
+                            }
+#endif
+                        } else {                  //非单次按下，读消息
                             if(num > 0) {   //如果有新消息
                                 num--;         //读一次 信息次数--
                                 num_r++;        //已读数++
                             } else {
                                 num_r = 0;
                             }
-                             
+
                             if(DeQueue(&Q, &pack)) {        //如果消息队列中有消息，出队，顺便入历史队
                                 callID = get_pack(&pack, arr);
                                 if(!EnQueue(&Q_old, &pack)) {   //历史队满了，进不去
@@ -302,6 +318,7 @@ int main(void)
                         uart_txarr(&HelpMsg[0], 1, 1);
                         beep = 1;
                         display_GB2312_string(0, 1, buf);
+                        UartScan();//这个地方防止切换状态把息屏收到的消息刷掉
                         if(LedF5 == 1) {
                             mini_sprint((char *)buf, 20, "收到%d条新消息!", num);
                             display_GB2312_string(2, 1, buf);
@@ -322,7 +339,7 @@ int main(void)
                         screen_off_cnt = 0;
                         OLED_Display_Off();
                         led_on = 1;
-                       /* CheckPower();*/
+                        /* CheckPower();*/
 //                        EnterHaltSleep();
 //                        delayms(20);
 //                        ExitHaltSleep();
@@ -416,7 +433,7 @@ int main(void)
             default:
                 break;
         }
-        
+
     }
 }
 

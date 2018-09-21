@@ -8,15 +8,19 @@ void GPIO_Config(void)
     GPIO_Init(GPIOA, GPIO_Pin_4, GPIO_Mode_Out_PP_High_Slow); //yellow
     GPIO_Init(GPIOA, GPIO_Pin_5, GPIO_Mode_Out_PP_High_Slow); //GREEN
 
-    GPIO_Init(GPIOB, GPIO_Pin_6, GPIO_Mode_Out_PP_Low_Slow); //辅助 1：0 灭
-    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_High_Slow );
-    
     GPIO_Init(GPIOA, GPIO_Pin_6, GPIO_Mode_Out_PP_High_Slow); //beep
+#if BANBEN2
+    GPIO_Init(GPIOB, GPIO_Pin_6,GPIO_Mode_Out_PP_High_Slow ); //辅助 1：0 灭
+    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_Low_Slow );
     
-//    GPIO_Init(AD_PORT, AD_PIN, GPIO_Mode_In_FL_No_IT); //PB2,低电量检测口
-//    GPIO_Init(PWM_PORT,PWM_PIN,GPIO_Mode_Out_PP_Low_Slow);  //PB4  0:恒流驱动 1：%70亮度 
-//    GPIO_Init(MAIN_LED_PORT,MAIN_LED_PIN,GPIO_Mode_Out_PP_Low_Slow); //控制主辅灯引脚PD7,PD7=1开启控制灯珠功能
-    
+    GPIO_Init(AD_PORT, AD_PIN, GPIO_Mode_In_FL_No_IT); //PB2,低电量检测口
+    GPIO_Init(PWM_PORT,PWM_PIN,GPIO_Mode_Out_PP_Low_Slow);  //PB4  0:恒流驱动 1：%70亮度 
+    GPIO_Init(MAIN_LED_PORT,MAIN_LED_PIN,GPIO_Mode_Out_PP_High_Slow); //控制主辅灯引脚PD7,PD7=1开启控制灯珠功能
+#else
+    GPIO_Init(GPIOB, GPIO_Pin_6, GPIO_Mode_Out_PP_Low_Slow); //辅助 0：1 灭
+    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_High_Slow );
+
+#endif    
     
 //    GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_No_IT);
     asm("sim");//close IT
@@ -33,9 +37,13 @@ void LEDInit(void)
 {
     GPIO_Init(GPIOA, GPIO_Pin_4, GPIO_Mode_Out_PP_High_Slow); //yellow
     GPIO_Init(GPIOA, GPIO_Pin_5, GPIO_Mode_Out_PP_High_Slow); //GREEN
-
+#if BANBEN2
+    GPIO_Init(GPIOB, GPIO_Pin_6,GPIO_Mode_Out_PP_High_Slow ); //辅助 1：0 灭
+    GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_Low_Slow );
+#else    
     GPIO_Init(GPIOB, GPIO_Pin_6, GPIO_Mode_Out_PP_Low_Slow); //辅助   0:1 灭
     GPIO_Init(GPIOB, GPIO_Pin_7, GPIO_Mode_Out_PP_High_Slow);
+#endif    
 }
 
 /*读取键值*/
@@ -126,3 +134,42 @@ unsigned char keyScan2(void)
     }
     return key_return;                            //返回按键值
 }
+unsigned char PowerScan(void)
+{
+    static unsigned char key_state = waitForPass;     //按键的状态
+    static unsigned short keyTimeCnt = 0;
+    unsigned char key_press;                 //按键是否被按下
+    unsigned char key_return = waitForPass; //按键返回值
+    key_press = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);              // 读IO电平
+
+    switch (key_state) {
+        case waitForPass:                 // 按键初始态
+            if (!key_press) {
+                key_state = KeyPassLong;   // 键被按下，状态转换到键确认态
+            }
+            break;
+//        case keyPassOne:                 // 单次触发确认
+//             if (!key_press){
+//                  key_state = KeyPassLong;   // 键被按下，状态转换到长按判断认态
+//             }else key_state = waitForPass;
+//             break;
+        case KeyPassLong:                 //消抖及长按确认
+            if (!key_press) {
+                keyTimeCnt++;
+                if( keyTimeCnt > 1 ) {  //如果长按时间到，返回值为长按状态
+                    keyTimeCnt = 0;
+                    key_state = waitForPass;         //并切换到释放状态
+                    key_return = KeyPassLong;          //返回值为长按状态
+                }
+            } else {                                   //如果长按时间不足，视为单次触发
+                keyTimeCnt = 0;
+                key_state = waitForPass;                //单次触发直接切换为初始状态
+                key_return = keyPassOne;                //返回值为单次触发
+            }
+            break;
+    }
+    return key_return;                            //返回按键值
+}
+
+
+
