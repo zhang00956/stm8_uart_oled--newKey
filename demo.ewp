@@ -492,7 +492,7 @@
         <option>
           <name>OOCOutputFormat</name>
           <version>2</version>
-          <state>0</state>
+          <state>2</state>
         </option>
         <option>
           <name>OCOutputOverride</name>
@@ -500,7 +500,7 @@
         </option>
         <option>
           <name>OOCOutputFile</name>
-          <state>demo.s19</state>
+          <state>demo.bin</state>
         </option>
         <option>
           <name>OOCCommandLineProducer</name>
@@ -614,11 +614,11 @@
         </option>
         <option>
           <name>IlinkIcfOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>$TOOLKIT_DIR$\config\lnkstm8l152k4.icf</state>
+          <state>$PROJ_DIR$\lnkstm8l152k6.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>

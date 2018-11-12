@@ -417,7 +417,7 @@ INTERRUPT_HANDLER(TIM3_UPD_OVF_TRG_BRK_IRQHandler, 21)
        it is recommended to set a breakpoint on the following instruction.
     */
     TIM3_Conut++;
-    if(TIM3_Conut >= 24000) { //10ms一次中断，累计120秒记数
+    if(TIM3_Conut >= 100) { //10ms一次中断
         TIM3_Conut = 0;
 //        disableInterrupts();
         if(Power_charge) {

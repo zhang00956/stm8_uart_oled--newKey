@@ -52,5 +52,5 @@ void LEDInit(void);
 unsigned char keyScan(void);
 unsigned char keyScan2(void);
 unsigned char KeyRead( void );
-unsigned char PowerScan(void);
+unsigned char PowerScan(uint8_t level);
 #endif

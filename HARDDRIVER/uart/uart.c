@@ -194,12 +194,12 @@ uint8_t UartScan(void)
                     }
                     screen_off_cnt = 0;
                     if(USART_RX_BUF[3] == 0xfc) {
-//                        clear_screen();
-//                        display_GB2312_string(0, 32, "充电中");                       
+                        clear_screen();
+                        display_GB2312_string(0, 32, "充电中");                       
                         TIM3_Cmd(DISABLE);
                     } else if(USART_RX_BUF[3] == 0xfb) {
-//                        clear_screen();
-//                        display_GB2312_string(0, 32, "充电结束");                        
+                        clear_screen();
+                        display_GB2312_string(0, 32, "充电结束");                        
                         TIM3_Cmd(DISABLE);
                     }else if(USART_RX_BUF[3] == 0xAC && USART_RX_BUF[4]==0XAC){
                           FLASH_Unlock(FLASH_MemType_Program);
