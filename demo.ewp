@@ -83,7 +83,7 @@
         </option>
         <option>
           <name>GenStackSize</name>
-          <state>0x100</state>
+          <state>0x120</state>
         </option>
         <option>
           <name>GenHeapSize</name>
@@ -492,7 +492,7 @@
         <option>
           <name>OOCOutputFormat</name>
           <version>2</version>
-          <state>2</state>
+          <state>1</state>
         </option>
         <option>
           <name>OCOutputOverride</name>
@@ -500,7 +500,7 @@
         </option>
         <option>
           <name>OOCOutputFile</name>
-          <state>demo.bin</state>
+          <state>demo.hex</state>
         </option>
         <option>
           <name>OOCCommandLineProducer</name>

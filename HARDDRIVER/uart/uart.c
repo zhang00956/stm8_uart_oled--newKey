@@ -5,6 +5,8 @@
 #include "queue.h"
 #include "LCD_ZK.h"
 #include "timer.h"
+#include "key.h"
+#include "mini-printf.h"
 
 //用户代码的起始地址
 #define MAIN_USER_Start_ADDR     ((uint32_t)0x8000+0X2000)
@@ -23,6 +25,7 @@ extern volatile u16 screen_off_cnt;
 void MyUart_Init(void)
 {
 
+//    USART_DeInit(USART1);
     GPIO_Init(GPIOC, GPIO_Pin_2, GPIO_Mode_In_PU_No_IT); //PC2 RX
     GPIO_Init(GPIOC, GPIO_Pin_3, GPIO_Mode_Out_PP_High_Fast); //PC3  TX
 
@@ -40,12 +43,12 @@ void MyUart_Init(void)
 
     USART_Cmd(USART1, ENABLE);
 // memset(USART_RX_BUF,0x00,USART_REC_LEN);
-    enableInterrupts();
 }
 void UartSendByte(unsigned char dat)
 {
+while(((USART1->SR) & 0x80) == 0x00);  
     USART1->DR = dat;
-    while(((USART1->SR) & 0x80) == 0x00);
+    
 }
 void uart_txstring(uint8_t *p)
 {
@@ -107,22 +110,29 @@ const VOIDFUN RestMain =(VOIDFUN) 0X8000;
 uint8_t UartScan(void)
 {
 
-    u8 len;   
-//    u8 t;
-//    u8 buf[10];//顶一个局部缓冲区
+    u8 len;
+    u8 ack = 0xf1;   
+//    u8 t;    
+    u8 buf[10];//顶一个局部缓冲区
+    extern u16 screen_off_cnt;
+    u16 zdID = 0;
     SNode pack;
     //u8 arr[49];
     if(USART_RX_STA & 0x8000) {
         len = USART_RX_STA & 0x3fff; //得到此次接收到的数据长度
-        if(len < 4) {
-            USART_RX_STA = 0;
-            return 0;
-        }
+
 //			for(t=0;t<len;t++)
 //			{
 //                USART_SendData8(USART1,USART_RX_BUF[t]);
 //                while(((USART1->SR) & 0x80) == 0x00);
-//			}
+//			}   
+        if(len < 4) {
+            if(USART_RX_BUF[0] == 0x05)
+              uart_txarr(&ack,1,1);//回复F1
+            screen_off_cnt = 0;
+            USART_RX_STA = 0;
+            return 0;
+        }
         switch (USART_RX_BUF[0]) {
                 /*
                             case CHE_LI :
@@ -194,8 +204,11 @@ uint8_t UartScan(void)
                     }
                     screen_off_cnt = 0;
                     if(USART_RX_BUF[3] == 0xfc) {
+                        zdID = (USART_RX_BUF[4]<<8) | USART_RX_BUF[5];
                         clear_screen();
-                        display_GB2312_string(0, 32, "充电中");                       
+                        mini_sprint((char *)buf, 10, "ID:%u", zdID);
+                        display_GB2312_string(0, 32, "充电中");
+                        display_GB2312_string(2, 32, buf);
                         TIM3_Cmd(DISABLE);
                     } else if(USART_RX_BUF[3] == 0xfb) {
                         clear_screen();
@@ -218,6 +231,7 @@ uint8_t UartScan(void)
         }
         USART_RX_STA = 0;
         memset(USART_RX_BUF, 0x00, USART_REC_LEN);
+        LEDInit();      
     }
     return 0;
 }

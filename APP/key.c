@@ -1,14 +1,17 @@
 #include "key.h"
 #include "low_power.h"
 
-#define FAN        1  //º¸·´
+
 
 void GPIO_Config(void)
 {
-    GPIO_Init(GPIOD, GPIO_Pin_6, GPIO_Mode_In_PU_No_IT); //key
+    GPIO_Init(KEYPORT, KEYPIN, GPIO_Mode_In_PU_No_IT); //key
     GPIO_Init(GPIOA, GPIO_Pin_4, GPIO_Mode_Out_PP_High_Slow); //yellow
     GPIO_Init(GPIOA, GPIO_Pin_5, GPIO_Mode_Out_PP_High_Slow); //GREEN
 
+//    GPIO_Init(GPIOB, GPIO_Pin_4, GPIO_Mode_Out_PP_Low_Slow ); 
+//    GPIO_Init(GPIOB, GPIO_Pin_2, GPIO_Mode_Out_PP_Low_Slow );    
+    
     GPIO_Init(GPIOA, GPIO_Pin_6, GPIO_Mode_Out_PP_High_Slow); //beep
 //#if BANBEN2
 //    GPIO_Init(GPIOB, GPIO_Pin_7,GPIO_Mode_Out_PP_High_Slow ); //¸¨Öú 1£º0 Ãð  

@@ -23,7 +23,7 @@
 #define OLED_HEIGHT                     64
 
 
-
+#if 0
 unsigned char const bmp1[]={
 //--  调入了一幅图像：D:\我的文档\My Pictures\12864-555.bmp  --
 //--  宽度x高度=128x64  --
@@ -142,6 +142,7 @@ unsigned char const lei1[]={/*--  文字:  畾  --*/
 0x7F,0x24,0x24,0x3F,0x24,0x24,0x7F,0x00,0x7F,0x24,0x24,0x3F,0x24,0x24,0x7F,0x00};
 
 
+#endif
 //OLED的显存
 //存放格式如下.
 //[0]0 1 2 3 ... 127	
@@ -266,12 +267,13 @@ void delay(unsigned int ms)
 
 /*LCD模块初始化*/
 void initial_lcd()
-{delay(400);
+{
 	//OLED_GPIO_Config();
 	GBZK_GPIO_Config();
 	lcd_cs1(0);
 	Rom_CS(1);
-       
+    delay(400);
+    
 	transfer_command_lcd(0xAE);   //display off
 	transfer_command_lcd(0x20);	//Set Memory Addressing Mode	
 	transfer_command_lcd(0x10);	//00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid

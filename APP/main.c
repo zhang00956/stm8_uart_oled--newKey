@@ -34,8 +34,8 @@
 #define CHARGEING 3055
 #define CHARGE_OVER 2773
 
-#define OFF_TIME           1000
-
+#define OFF_TIME           1200
+#define KEY_DELAY           7  //定义按键扫描时长，实际约10ms
 
 
 queue Q, Q_old;
@@ -66,15 +66,23 @@ u16 ReadBattery(void);
 void CheckPower(void);
 void IWDG_init(void)
 {
+#if USE_LPOWER
+
+#else
     IWDG->KR = 0XCC; //启动IWDG
     IWDG->KR = 0X55; //解除KR PLR寄存器保护
     IWDG->RLR = 0XFF; //看门狗计数器重装载数值
     IWDG->PR = 0X06; //分频系数为64?1.02s
     IWDG->KR = 0XAA; //喂狗
+#endif
 }
 void WatchDog_Feed(void)
 {
+#if USE_LPOWER
+
+#else
     IWDG->KR = 0XAA;
+#endif
 }
 int main(void)
 {
@@ -100,13 +108,12 @@ int main(void)
     MyUart_Init();
     print_init_module(uart_txstring);
     initial_lcd();
-
-
-    clear_screen();    //clear all dots
-    display_128x64(bmp1);
+    clear_screen();
+    display_GB2312_string(0, 32, "芯力波通");
 
     GPIO_Config();
     IWDG_init();
+    enableInterrupts();
 //     ADCConver_Init();
 
 //    u16 u16_adc1_value;
@@ -150,10 +157,10 @@ int main(void)
         transfer_command_lcd(0x2F);
     	lcd_cs1(1);*/
 
-    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET) {  //如果是插着充电器开机
-        Power_charge = 1;
-    }
-    TIM3_Init(); //初始化一下汇报充电状态定时器
+//    if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET) {  //如果是插着充电器开机
+//        Power_charge = 1;
+//    }
+//    TIM3_Init(); //初始化一下汇报充电状态定时器
 
     while(1) {
         WatchDog_Feed();
@@ -189,30 +196,30 @@ int main(void)
             uart_txarr(&PowerMsg[0], 1, 1);
             beep = 0;
             AppState = NORMAL;
-while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
-              IWDG->KR=0xAA;//刷新IDDG，避免产生看门狗复位
+            while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
+                WatchDog_Feed(); //刷新IDDG，避免产生看门狗复位
                 UartScan();
                 power_on = PowerScan(0);
-                if(power_on == 2) {                  
+                if(power_on == 2) {
 
 //                    asm("sim");//close IT
-//                    Power_charge = 0; 
-//                    EXTI_SetPinSensitivity(ADC_EXTI_PIN, EXTI_Trigger_Rising); //上升沿中断                   
+//                    Power_charge = 0;
+//                    EXTI_SetPinSensitivity(ADC_EXTI_PIN, EXTI_Trigger_Rising); //上升沿中断
 //                    GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_IT);//初始充电接口
 //                    EXTI_ClearITPendingBit(EXTI_IT_Pin1);
 //                    asm("rim");
                     UartScan();
                     keyPassValue = 0;//断开之后重置按键状态
                     beep = 0;
-                    memset(arr,0x00,49);
+                    memset(arr, 0x00, 49);
                     mini_sprint(buf, 20, "充电器已断开");
                     LED_GREEN_OFF;
-                    LED_RED_OFF;  
+                    LED_RED_OFF;
                     clear_screen();
                     display_GB2312_string(0, 16, buf);
 //                    uart_txstring("断\r\n");
                     TIM3_Conut = 0;
-                    TIM3_Init(); //初始化一下汇报充电状态定时器                    
+                    TIM3_Init(); //初始化一下汇报充电状态定时器
                     uart_txarr(&PowerMsg[1], 1, 1);
                     Power_charge = 0;
                     break;
@@ -225,31 +232,30 @@ while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否
 //                    display_GB2312_string(0, 32, buf);
 //                    beep = 0;
 //                    LED_GREEN_OFF;
-//                    LED_RED_OFF;  
+//                    LED_RED_OFF;
 //                    uart_txarr(&PowerMsg[3], 1, 1);
 //                  }else{
 //                    mini_sprint(buf, 20, "产测模式");
 //                    clear_screen();
-//                    display_GB2312_string(0, 32, buf);                    
+//                    display_GB2312_string(0, 32, buf);
 //                    mini_sprint(arr, 49, "请注意观察上位机数据,LED和蜂鸣器是否正常!!");
 //                    display_GB2312_string(2, 0, arr);
 //                    beep = 1;
-//                    LED_GREEN_ON; 
-//                    LED_RED_ON;   
+//                    LED_GREEN_ON;
+//                    LED_RED_ON;
 //                    uart_txarr(&PowerMsg[2], 1, 1);
 //                  }
 //                }
 //                if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
 //                    sound2();
 //                }
-                delayms(10);
+                delayms(KEY_DELAY);
             }
-        }else{
-                power_on = PowerScan(1);
-                if(power_on == 2) {
-                    Power_charge =1;
-                }
-        
+        } else {
+            power_on = PowerScan(1);
+            if(power_on == 2) {
+                Power_charge = 1;
+            }
         }
         switch(AppState) {
             case NORMAL:
@@ -340,17 +346,22 @@ while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否
                         break;
                 }
                 if(AppState == NORMAL) {
-                    delayms(10);
+                    delayms(KEY_DELAY);
                     screen_off_cnt++;
                     if(screen_off_cnt > OFF_TIME) {
                         screen_off_cnt = 0;
                         OLED_Display_Off();
                         led_on = 1;
+#if USE_LPOWER
                         /* CheckPower();*/
-//                        EnterHaltSleep();
-//                        delayms(20);
-//                        ExitHaltSleep();
-//                        uart_txstring("exit sleep\r\n");
+//                        mini_print("sleep\r\n");
+//                          delayms(1);
+                        if(KEY_NORMAL == KeyRead()) {   //有按键还在按的时候，先不休眠
+                            EnterHaltSleep();
+                            ExitHaltSleep();
+                        }
+//                        mini_print("exit sleep\r\n");
+#endif
                     }
                 }
                 break;
@@ -394,7 +405,7 @@ while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
                         sound2();
                     }
-                    delayms(10);
+                    delayms(KEY_DELAY);
                 }
                 break;
             case CALLING:
@@ -434,7 +445,7 @@ while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否
                     if((beep > 0) && (KEY_NORMAL == KeyRead())) {  //有按键操作不再响铃
                         sound2();
                     }
-                    delayms(10);
+                    delayms(KEY_DELAY);
                 }
                 break;
             default:

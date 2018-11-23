@@ -3,20 +3,27 @@
 
 #include "stm8l15x.h"
 
-#define KEY_LONG_PASS_TIME 700
+#define KEY_LONG_PASS_TIME 1000 //
 #define TEST_TIME          800  //产测时间
+
 
 #define KEY_NORMAL         0X40
 #define KEYPORT  GPIOD
 #define KEYPIN   GPIO_Pin_6
+#define KEY_EXTI_PIN    EXTI_Pin_6
+
 
 #define LED_GREEN_PORT  GPIOA
 #define LED_GREEN_PIN   GPIO_Pin_5
 #define LED_RED_PORT    GPIOA
 #define LED_RED_PIN     GPIO_Pin_4
 
+
+
 //版本2
 #define BANBEN2         0
+
+#define FAN        1  //焊反
 
 #if BANBEN2
 #define PWM_PORT        GPIOB

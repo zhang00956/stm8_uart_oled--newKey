@@ -33,6 +33,7 @@ u8 USART_RX_BUF[USART_REC_LEN];//缓冲区
 volatile u16 USART_RX_STA = 0;//接受状态
 volatile u16 TIM2_Conut = 0;
 volatile u16 TIM3_Conut = 0;
+volatile u8 KeyWake = 0;//灯头是按键唤醒的，可用于唤醒终端
 extern u8 AppState;
 extern u8 keyPassValue;
 extern u8 led_on;//第一次按按键点亮屏幕
@@ -211,15 +212,15 @@ INTERRUPT_HANDLER(EXTI1_IRQHandler, 9)
 //  u8 test = 0;
     disableInterrupts();
     if(EXTI_GetITStatus(EXTI_IT_Pin1)) {
-        EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
-        delayms(20);//消抖
+
 //        test = GPIO_ReadInputDataBit(ADCPORT, ADCPIN);
         if(GPIO_ReadInputDataBit(ADCPORT, ADCPIN) == SET) {
 //        if(test)
 //        {
             GPIO_Init(ADCPORT, ADCPIN, GPIO_Mode_In_FL_No_IT);
-            Power_charge = 1;
+//            Power_charge = 1;//不再需要，可以用poll模式读
         }
+        EXTI_ClearITPendingBit(EXTI_IT_Pin1);//清除标志位
     }
     enableInterrupts();
 }
@@ -297,15 +298,17 @@ INTERRUPT_HANDLER(EXTI6_IRQHandler, 14)
     */
     disableInterrupts();
     if(EXTI_GetITStatus(EXTI_IT_Pin6)) {
+
+//        delayms(5);//消抖
+        /* Check if the interrupt is from the COUNT_A pin or not */
+        if(GPIO_ReadInputDataBit(KEYPORT, KEYPIN) == RESET) {
+            GPIO_Init(KEYPORT, KEYPIN, GPIO_Mode_In_PU_No_IT);
+            KeyWake = 1;
+//            led_on = 0;
+//            OLED_Display_On();
+        }
         /* Cleat Interrupt pending bit */
         EXTI_ClearITPendingBit (EXTI_IT_Pin6);//清除中断标志
-        delayms(5);//消抖
-        /* Check if the interrupt is from the COUNT_A pin or not */
-        if(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) {
-            GPIO_Init(GPIOD, GPIO_Pin_6, GPIO_Mode_In_PU_No_IT);
-            led_on = 0;
-            OLED_Display_On();
-        }
     }
     enableInterrupts();
 }
@@ -539,8 +542,6 @@ INTERRUPT_HANDLER(USART1_RX_IRQHandler, 28)
                 }
             }
         }
-        LEDInit();
-
         USART_ClearITPendingBit(USART1, USART_IT_RXNE); //情况中断标志位
     }
 }

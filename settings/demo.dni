@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=-422676569
+Checksum=1267020436
 [CallStack]
 ShowArgs=0
 [Disassembly]
@@ -27,8 +27,7 @@ Category=_ 0
 LoggingEnabled=_ 0
 LogFile=_ ""
 [Breakpoints]
-Bp0=_ "STD_CODE" "{$PROJ_DIR$\BSP\sysclk.c}.52.3" 0 0 0 0 "" 0 ""
-Count=1
+Count=0
 [Aliases]
 A0=_ "C:\Users\xs\Desktop\123\mini-printf.c" ""
 Count=1
