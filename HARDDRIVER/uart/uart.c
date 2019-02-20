@@ -21,7 +21,7 @@ extern u8 beep;
 extern u8 LedF5;
 extern volatile u8 led_on;
 extern volatile u16 screen_off_cnt;
-
+extern volatile u8 tim_ack;
 void MyUart_Init(void)
 {
 
@@ -112,10 +112,10 @@ uint8_t UartScan(void)
 
     u8 len;
     u8 ack = 0xf1;   
-//    u8 t;    
-    u8 buf[10];//顶一个局部缓冲区
-    extern u16 screen_off_cnt;
     u16 zdID = 0;
+//    u8 t;    
+    u8 buf[20];//顶一个局部缓冲区
+    extern u16 screen_off_cnt;
     SNode pack;
     //u8 arr[49];
     if(USART_RX_STA & 0x8000) {
@@ -206,13 +206,17 @@ uint8_t UartScan(void)
                     if(USART_RX_BUF[3] == 0xfc) {
                         zdID = (USART_RX_BUF[4]<<8) | USART_RX_BUF[5];
                         clear_screen();
-                        mini_sprint((char *)buf, 10, "ID:%u", zdID);
+                        mini_sprint((char *)buf, 20, "ID:%u", zdID);
                         display_GB2312_string(0, 32, "充电中");
                         display_GB2312_string(2, 32, buf);
+                        tim_ack = 1;
+                        
                         TIM3_Cmd(DISABLE);
                     } else if(USART_RX_BUF[3] == 0xfb) {
                         clear_screen();
-                        display_GB2312_string(0, 32, "充电结束");                        
+                        display_GB2312_string(0, 32, "充电结束");
+                        tim_ack = 1;
+                        
                         TIM3_Cmd(DISABLE);
                     }else if(USART_RX_BUF[3] == 0xAC && USART_RX_BUF[4]==0XAC){
                           FLASH_Unlock(FLASH_MemType_Program);

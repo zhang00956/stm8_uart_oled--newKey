@@ -52,6 +52,7 @@ volatile u8 keyPassValue = 0; //长按短按状态
 volatile u8 Power_charge = 0; //充电器连接状态检测
 volatile u16 screen_off_cnt = 0; //息屏计时
 volatile u8 LowPower = 0;
+volatile u8 tim_ack = 1; //终端定时器回复，1回复完毕 0等待回复，主要防止休眠
 extern volatile u16 TIM3_Conut;
 
 /*0xff求救信息
@@ -194,6 +195,7 @@ int main(void)
             TIM3_Conut = 0;
             TIM3_Init(); //初始化一下汇报充电状态定时器
             uart_txarr(&PowerMsg[0], 1, 1);
+            tim_ack = 0;//等待回复
             beep = 0;
             AppState = NORMAL;
             while(Power_charge) {       //充电情况下屏幕不熄灭，一直检测充电断开，并检测是否进入测试模式
@@ -222,6 +224,7 @@ int main(void)
                     TIM3_Init(); //初始化一下汇报充电状态定时器
                     uart_txarr(&PowerMsg[1], 1, 1);
                     Power_charge = 0;
+                    tim_ack = 0;
                     break;
                 }
 //                keyPassValue = keyScan2();
@@ -356,7 +359,7 @@ int main(void)
                         /* CheckPower();*/
 //                        mini_print("sleep\r\n");
 //                          delayms(1);
-                        if(KEY_NORMAL == KeyRead()) {   //有按键还在按的时候，先不休眠
+                        if(  (KEY_NORMAL == KeyRead()) && (tim_ack == 1 ) ) {   //有按键还在按的时候，先不休眠
                             EnterHaltSleep();
                             ExitHaltSleep();
                         }
